@@ -245,6 +245,7 @@ function App() {
 
   const renderLoginPage = () => (
     <div className="login-page">
+      <img src="/logo.svg" alt="Kuma Logo" className="login-logo" />
       <h2>Login / Registrazione</h2>
       <form onSubmit={handleLogin}>
         <input
