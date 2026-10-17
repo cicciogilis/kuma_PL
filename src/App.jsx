@@ -38,17 +38,26 @@ function App() {
   const [bw, setBw] = useState('');
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [gender, setGender] = useState('');
-  
+  const [showSplash, setShowSplash] = useState(true);
+
   useEffect(() => {
-    // Controlla se ci sono credenziali salvate nel localStorage
-    const savedUsername = localStorage.getItem('username');
-    const savedPassword = localStorage.getItem('password');
-    if (savedUsername && savedPassword) {
-      setUsername(savedUsername);
-      setPassword(savedPassword);
-      handleLogin(null, savedUsername, savedPassword);
-    }
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+    }, 2000);
+    return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    if (!showSplash) {
+      const savedUsername = localStorage.getItem('username');
+      const savedPassword = localStorage.getItem('password');
+      if (savedUsername && savedPassword) {
+        setUsername(savedUsername);
+        setPassword(savedPassword);
+        handleLogin(null, savedUsername, savedPassword);
+      }
+    }
+  }, [showSplash]);
 
   const handleLogin = async (e, savedUsername = null, savedPassword = null) => {
     if (e) e.preventDefault();
@@ -225,6 +234,14 @@ function App() {
       alert('Per favore, compila tutti i campi');
     }
   };
+
+  const renderSplashPage = () => (
+    <div className="splash-page">
+      <div className="splash-logo-container">
+        <img src="/logo.svg" alt="Kuma Logo" className="splash-logo" />
+      </div>
+    </div>
+  );
 
   const renderLoginPage = () => (
     <div className="login-page">
@@ -430,8 +447,9 @@ function App() {
 
   return (
     <div className="app">
-      {currentPage === 'Login' && renderLoginPage()}
-      {currentPage === 'Me' && renderMePage()}
+      {showSplash && renderSplashPage()}
+      {!showSplash && currentPage === 'Login' && renderLoginPage()}
+      {!showSplash && currentPage === 'Me' && renderMePage()}
       {currentPage === 'Leaderboard' && renderLeaderboardPage()}
       {currentPage === 'Profile' && renderProfilePage()}
       {currentPage !== 'Login' && (

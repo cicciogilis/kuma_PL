@@ -158,17 +158,36 @@ body {
   color: #ff4136;
 }
 
-.login-page {
+.splash-page {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   min-height: 100vh;
   width: 100%;
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 20px;
-  box-sizing: border-box;
+  background-color: #000;
+}
+
+.splash-logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  animation: splashZoom 2s ease-in-out infinite;
+}
+
+.splash-logo {
+  width: 180px;
+  height: 180px;
+  animation: splashZoom 2s ease-in-out infinite;
+}
+
+@keyframes splashZoom {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
 }
 
 .profile-page {
@@ -183,6 +202,19 @@ body {
   padding: 20px;
   box-sizing: border-box;
   overflow-y: auto; /* Aggiungiamo scroll solo se necessario */
+}
+
+.login-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  width: 100%;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
 }
 
 .login-page form, .profile-section {
