@@ -172,22 +172,11 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  animation: splashZoom 2s ease-in-out infinite;
 }
 
 .splash-logo {
-  width: 180px;
-  height: 180px;
-  animation: splashZoom 2s ease-in-out infinite;
-}
-
-@keyframes splashZoom {
-  0%, 100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.2);
-  }
+  width: 260px;
+  height: 260px;
 }
 
 .profile-page {
