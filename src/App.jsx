@@ -4,7 +4,7 @@ import { getDatabase, ref, set, get, update, query, orderByChild } from 'firebas
 import './App.css';
 import bcrypt from 'bcryptjs';
 import PasswordInput from './PasswordInput';
-import { User, Trophy, Settings } from 'lucide-react';
+import { User, Trophy, Settings, Home, Layout } from 'lucide-react';
 import LeaderboardWithSorting from './LeaderboardWithSorting';
 
 // Configurazione Firebase
@@ -72,7 +72,7 @@ function App() {
       if (isPasswordCorrect) {
         setUsername(userData.username);
         loadUserData(lowercaseUsername);
-        setCurrentPage('Me');
+        setCurrentPage('Home');
         localStorage.setItem('username', userData.username);
         localStorage.setItem('password', loginPassword);
       } else {
@@ -446,20 +446,59 @@ function App() {
     </div>
   );
 
+  const renderProgrammazioniPage = () => (
+    <div className="programmazioni-page">
+      <h2>Programmazioni</h2>
+      <p>In arrivo...</p>
+    </div>
+  );
+
+  const renderHomePage = () => (
+    <div className="home-page">
+      <h2>Benvenuto, {username}!</h2>
+      <div className="home-grid">
+        <button className="home-card" onClick={() => setCurrentPage('Me')}>
+          <User size={48} />
+          <span>Personal Record</span>
+        </button>
+        <button className="home-card" onClick={() => setCurrentPage('Leaderboard')}>
+          <Trophy size={48} />
+          <span>Leader Board</span>
+        </button>
+        <button className="home-card" onClick={() => setCurrentPage('Programmazioni')}>
+          <Layout size={48} />
+          <span>Programmazioni</span>
+        </button>
+        <button className="home-card" onClick={() => setCurrentPage('Profile')}>
+          <Settings size={48} />
+          <span>Profilo</span>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="app">
       {showSplash && renderSplashPage()}
       {!showSplash && currentPage === 'Login' && renderLoginPage()}
+      {!showSplash && currentPage === 'Home' && renderHomePage()}
       {!showSplash && currentPage === 'Me' && renderMePage()}
-      {currentPage === 'Leaderboard' && renderLeaderboardPage()}
-      {currentPage === 'Profile' && renderProfilePage()}
+      {!showSplash && currentPage === 'Leaderboard' && renderLeaderboardPage()}
+      {!showSplash && currentPage === 'Profile' && renderProfilePage()}
+      {!showSplash && currentPage === 'Programmazioni' && renderProgrammazioniPage()}
       {currentPage !== 'Login' && (
         <div className="menu-bar">
+          <button onClick={() => setCurrentPage('Home')}>
+            <Home size={24} />
+          </button>
           <button onClick={() => setCurrentPage('Me')}>
             <User size={24} />
           </button>
           <button onClick={() => setCurrentPage('Leaderboard')}>
             <Trophy size={24} />
+          </button>
+          <button onClick={() => setCurrentPage('Programmazioni')}>
+            <Layout size={24} />
           </button>
           <button onClick={() => setCurrentPage('Profile')}>
             <Settings size={24} />

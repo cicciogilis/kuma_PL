@@ -380,3 +380,63 @@ body {
 .profile-page .password-input-container button.toggle-password:hover {
   background-color: transparent;
 }
+
+.home-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  width: 100%;
+  margin-top: 30px;
+}
+
+.home-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: #333;
+  border: 1px solid #ff4136;
+  border-radius: 10px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.home-card:hover {
+  background-color: #444;
+  transform: translateY(-3px);
+}
+
+.home-card span {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.programmazioni-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 60px);
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
