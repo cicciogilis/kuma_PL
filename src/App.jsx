@@ -238,14 +238,14 @@ function App() {
   const renderSplashPage = () => (
     <div className="splash-page">
       <div className="splash-logo-container">
-        <img src="/logo.svg" alt="Kuma Logo" className="splash-logo" />
+        <img src="/logo512.png" alt="Kuma Logo" className="splash-logo" />
       </div>
     </div>
   );
 
   const renderLoginPage = () => (
     <div className="login-page">
-      <img src="/logo.svg" alt="Kuma Logo" className="login-logo" />
+      <img src="/logo512.png" alt="Kuma Logo" className="login-logo" />
       <h2>Login / Registrazione</h2>
       <form onSubmit={handleLogin}>
         <input
