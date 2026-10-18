@@ -4,7 +4,7 @@ import { getDatabase, ref, set, get, update, query, orderByChild } from 'firebas
 import './App.css';
 import bcrypt from 'bcryptjs';
 import PasswordInput from './PasswordInput';
-import { User, Trophy, Settings, Home, Layout } from 'lucide-react';
+import { User, Trophy, Settings, Home, Layout, Dumbbell, Target, Activity, ChevronDown, ChevronUp } from 'lucide-react';
 import LeaderboardWithSorting from './LeaderboardWithSorting';
 
 // Configurazione Firebase
@@ -38,6 +38,9 @@ function App() {
   const [bw, setBw] = useState('');
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [gender, setGender] = useState('');
+  const [expandedCard, setExpandedCard] = useState(null);
+  const [prDates, setPrDates] = useState(['', '', '']);
+  const [prNotes, setPrNotes] = useState(['', '', '']);
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -90,7 +93,9 @@ function App() {
         sObj: 0,
         bObj: 0,
         dObj: 0,
-        bw: ''
+        bw: '',
+        prDate: ['', '', ''],
+        prNotes: ['', '', '']
       });
       loadUserData(lowercaseUsername);
       setCurrentPage('Me');
@@ -118,6 +123,8 @@ function App() {
       ]);
       setBw(userData.bw || '');
       setGender(userData.gender || '');
+      setPrDates(userData.prDate || ['', '', '']);
+      setPrNotes(userData.prNotes || ['', '', '']);
     }
   };
 
@@ -155,7 +162,9 @@ function App() {
       bObj: topNumbers[1] || null,
       dObj: topNumbers[2] || null,
       bw: bw || null,
-      gender: gender || null
+      gender: gender || null,
+      prDate: prDates,
+      prNotes: prNotes
     });
     alert('Dati salvati con successo');
   };
@@ -300,145 +309,137 @@ function App() {
     </div>
   );
 
-  const renderMePage = () => (
-    <>
-      <h2>Benvenuto, {username}!</h2>
-      <div className="section-title">OBIETTIVI:</div>
-      <div className="section">
-        <div className="column">
-          <div className="label">S</div>
-          <input
-            type="number"
-            value={topNumbers[0]}
-            onChange={(e) => handleNumberChange(0, true, e.target.value)}
-            className="number-input"
-          />
-          <div className="label">D</div>
-          <input
-            type="number"
-            value={topNumbers[2]}
-            onChange={(e) => handleNumberChange(2, true, e.target.value)}
-            className="number-input"
-          />
+  const renderMePage = () => {
+    const exercises = [
+      { key: 's', label: 'Squat', icon: <Dumbbell size={28} color="#fff" />, index: 0 },
+      { key: 'b', label: 'Bench', icon: <Target size={28} color="#fff" />, index: 1 },
+      { key: 'd', label: 'Deadlift', icon: <Activity size={28} color="#fff" />, index: 2 },
+    ];
+
+    const getPrPercentage = (index) => {
+      const current = parseFloat(bottomNumbers[index]);
+      const goal = parseFloat(topNumbers[index]);
+      if (!current || !goal) return 0;
+      return Math.min((current / goal) * 100, 100);
+    };
+
+    return (
+      <>
+        <div className="me-total">
+          Totale attuale: <span>{bottomNumbers[3] || '0'} kg</span>
         </div>
-        <div className="column">
-          <div className="label">B</div>
-          <input
-            type="number"
-            value={topNumbers[1]}
-            onChange={(e) => handleNumberChange(1, true, e.target.value)}
-            className="number-input"
-          />
-          <div className="label">T</div>
-          <input
-            type="number"
-            value={topNumbers[3]}
-            readOnly
-            className="number-input"
-          />
-        </div>
-      </div>
-      <div className="section-title">PR:</div>
-      <div className="section">
-        <div className="column">
-          <div className="label">S</div>
-          <input
-            type="number"
-            value={bottomNumbers[0]}
-            onChange={(e) => handleNumberChange(0, false, e.target.value)}
-            className="number-input"
-          />
-          <div className="percentage-item">
-            <div
-              className="percentage-bar"
-              style={{
-                width: `${percentages[0] || 0}%`,
-                backgroundColor: getColor(percentages[0] || 0),
-              }}
-            ></div>
-            <span className="percentage-text">{percentages[0] ? `${percentages[0].toFixed(2)}%` : ''}</span>
-          </div>
-          <div className="label">D</div>
-          <input
-            type="number"
-            value={bottomNumbers[2]}
-            onChange={(e) => handleNumberChange(2, false, e.target.value)}
-            className="number-input"
-          />
-          <div className="percentage-item">
-            <div
-              className="percentage-bar"
-              style={{
-                width: `${percentages[2] || 0}%`,
-                backgroundColor: getColor(percentages[2] || 0),
-              }}
-            ></div>
-            <span className="percentage-text">{percentages[2] ? `${percentages[2].toFixed(2)}%` : ''}</span>
+
+        <div className="personal-info-section">
+          <div className="section-title">Informazioni personali</div>
+          <div className="personal-info-grid">
+            <div className="info-item">
+              <div className="info-label">Peso corporeo</div>
+              <input
+                type="number"
+                value={bw}
+                onChange={(e) => setBw(e.target.value)}
+                className="info-input"
+                placeholder="kg"
+              />
+            </div>
+            <div className="info-item">
+              <div className="info-label">Genere</div>
+              <select
+                value={gender}
+                onChange={(e) => setGender(e.target.value)}
+                className="info-select"
+              >
+                <option value="">Seleziona</option>
+                <option value="M">M</option>
+                <option value="F">F</option>
+              </select>
+            </div>
           </div>
         </div>
-        <div className="column">
-          <div className="label">B</div>
-          <input
-            type="number"
-            value={bottomNumbers[1]}
-            onChange={(e) => handleNumberChange(1, false, e.target.value)}
-            className="number-input"
-          />
-          <div className="percentage-item">
-            <div
-              className="percentage-bar"
-              style={{
-                width: `${percentages[1] || 0}%`,
-                backgroundColor: getColor(percentages[1] || 0),
-              }}
-            ></div>
-            <span className="percentage-text">{percentages[1] ? `${percentages[1].toFixed(2)}%` : ''}</span>
-          </div>
-          <div className="label">T</div>
-          <input
-            type="number"
-            value={bottomNumbers[3]}
-            readOnly
-            className="number-input"
-          />
-          <div className="percentage-item">
-            <div
-              className="percentage-bar"
-              style={{
-                width: `${percentages[3] || 0}%`,
-                backgroundColor: getColor(percentages[3] || 0),
-              }}
-            ></div>
-            <span className="percentage-text">{percentages[3] ? `${percentages[3].toFixed(2)}%` : ''}</span>
-          </div>
+
+        <div className="pr-cards-section">
+          <div className="section-title">Personal Record</div>
+          {exercises.map((ex) => (
+            <div key={ex.key} className={`pr-card ${expandedCard === ex.index ? 'expanded' : ''}`}>
+              <div className="pr-card-header" onClick={() => setExpandedCard(expandedCard === ex.index ? null : ex.index)}>
+                <div className="pr-card-icon">{ex.icon}</div>
+                <span className="pr-card-label">{ex.label}</span>
+                {expandedCard === ex.index ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </div>
+              {expandedCard === ex.index && (
+                <div className="pr-card-content">
+                  <div className="pr-field-row">
+                    <div className="pr-field">
+                      <label>Attuale</label>
+                      <input
+                        type="number"
+                        value={bottomNumbers[ex.index]}
+                        onChange={(e) => handleNumberChange(ex.index, false, e.target.value)}
+                        className="pr-input"
+                      />
+                    </div>
+                    <div className="pr-field">
+                      <label>Obiettivo</label>
+                      <input
+                        type="number"
+                        value={topNumbers[ex.index]}
+                        onChange={(e) => handleNumberChange(ex.index, true, e.target.value)}
+                        className="pr-input"
+                      />
+                    </div>
+                    <div className="pr-field">
+                      <label>Data</label>
+                      <input
+                        type="date"
+                        value={prDates[ex.index]}
+                        onChange={(e) => {
+                          const next = [...prDates];
+                          next[ex.index] = e.target.value;
+                          setPrDates(next);
+                        }}
+                        className="pr-input"
+                      />
+                    </div>
+                  </div>
+                  <div className="pr-field-row">
+                    <div className="pr-field-full">
+                      <label>Note</label>
+                      <textarea
+                        value={prNotes[ex.index]}
+                        onChange={(e) => {
+                          const next = [...prNotes];
+                          next[ex.index] = e.target.value;
+                          setPrNotes(next);
+                        }}
+                        className="pr-textarea"
+                        placeholder="Aggiungi note..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                  <div className="pr-percentage-row">
+                    <span className="pr-percentage-label">Progresso verso obiettivo</span>
+                    <div className="pr-percentage-bar-container">
+                      <div
+                        className="pr-percentage-bar"
+                        style={{
+                          width: `${getPrPercentage(ex.index)}%`,
+                          backgroundColor: getColor(getPrPercentage(ex.index)),
+                        }}
+                      />
+                    </div>
+                    <span className="pr-percentage-value">{getPrPercentage(ex.index).toFixed(1)}%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-      </div>
-      <div className="bw-gender-container">
-        <div className="bw-input">
-          <div className="label">BW</div>
-          <input
-            type="number"
-            value={bw}
-            onChange={(e) => setBw(e.target.value)}
-            className="number-input"
-          />
-        </div>
-        <div className="gender-input">
-          <div className="label">Genere</div>
-          <select
-            value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            className="gender-select"
-          >
-            <option value="">Seleziona</option>
-            <option value="M">M</option>
-            <option value="F">F</option>
-          </select>
-        </div>
-      </div>
-      <button onClick={handleSave} className="save-button">Salva</button>
-    </>
-  );
+
+        <button onClick={handleSave} className="save-button">Salva modifiche</button>
+      </>
+    );
+  };
 
   const renderLeaderboardPage = () => (
     <div className="leaderboard">
@@ -479,6 +480,7 @@ function App() {
 
   return (
     <div className="app">
+      <div className="app-background" />
       {showSplash && renderSplashPage()}
       {!showSplash && currentPage === 'Login' && renderLoginPage()}
       {!showSplash && currentPage === 'Home' && renderHomePage()}

@@ -14,6 +14,8 @@ body {
   box-sizing: border-box;
   width: 100%;
   padding-bottom: 80px; /* Per evitare che il contenuto sia nascosto dal menu */
+  position: relative;
+  overflow: hidden;
 }
 
 .section-title {
@@ -190,7 +192,176 @@ body {
   margin: 0 auto;
   padding: 20px;
   box-sizing: border-box;
-  overflow-y: auto; /* Aggiungiamo scroll solo se necessario */
+}
+
+.me-total {
+  font-size: 20px;
+  font-weight: bold;
+  color: #ff4136;
+  margin: 20px 0 10px 0;
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
+}
+
+.personal-info-section {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 20px auto;
+}
+
+.personal-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+  margin-top: 10px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.info-label {
+  font-size: 14px;
+  font-weight: bold;
+  color: #ff4136;
+}
+
+.info-input, .info-select {
+  padding: 10px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #ff4136;
+  border-radius: 5px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.pr-cards-section {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 20px auto;
+}
+
+.pr-card {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.pr-card.expanded {
+  border-color: #ff4136;
+  background-color: #222;
+}
+
+.pr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  cursor: pointer;
+  background-color: #222;
+}
+
+.pr-card-header:hover {
+  background-color: #2a2a2a;
+}
+
+.pr-card-icon {
+  margin-right: 15px;
+}
+
+.pr-card-label {
+  flex: 1;
+  font-size: 18px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.pr-card-content {
+  padding: 0 15px 15px 15px;
+  border-top: 1px solid #333;
+}
+
+.pr-field-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.pr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pr-field-full {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.pr-field label {
+  font-size: 13px;
+  font-weight: bold;
+  color: #ccc;
+}
+
+.pr-input, .pr-textarea {
+  padding: 10px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #ff4136;
+  border-radius: 5px;
+  font-size: 16px;
+  box-sizing: border-box;
+}
+
+.pr-textarea {
+  min-height: 60px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.pr-percentage-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.pr-percentage-label {
+  font-size: 14px;
+  color: #ccc;
+  flex: 1;
+}
+
+.pr-percentage-bar-container {
+  flex: 2;
+  height: 20px;
+  background-color: #333;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.pr-percentage-bar {
+  height: 100%;
+  transition: width 0.3s ease-in-out;
+}
+
+.pr-percentage-value {
+  font-size: 14px;
+  font-weight: bold;
+  color: #ff4136;
+  min-width: 45px;
+  text-align: right;
 }
 
 .login-page {
@@ -439,4 +610,17 @@ body {
   text-align: center;
   padding: 20px;
   box-sizing: border-box;
+}
+
+.app-background {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url('/logo512.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.12;
+  filter: grayscale(100%);
 }
