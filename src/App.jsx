@@ -255,7 +255,7 @@ function App() {
     if (currentPage === 'Leaderboard') {
       loadLeaderboard();
     }
-  }, [currentPage]);
+  }, [currentPage, showUsernameOnLeaderboard]);
 
   const handleChangeUsername = async () => {
     if (newUsername) {
