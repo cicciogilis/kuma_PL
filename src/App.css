@@ -167,7 +167,7 @@ body {
   justify-content: center;
   min-height: 100vh;
   width: 100%;
-  background-color: #000;
+  background-color: transparent;
 }
 
 .splash-logo-container {
@@ -202,6 +202,10 @@ body {
   text-align: center;
   width: 100%;
   max-width: 500px;
+}
+
+.me-total-value {
+  font-size: 36px;
 }
 
 .personal-info-section {
@@ -623,4 +627,99 @@ body {
   background-repeat: no-repeat;
   opacity: 0.12;
   filter: grayscale(100%);
+}
+
+.other-pr-section {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 20px auto;
+}
+
+.other-pr-card {
+  background-color: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.other-pr-card.expanded {
+  border-color: #ff4136;
+  background-color: #222;
+}
+
+.other-pr-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  cursor: pointer;
+  background-color: #222;
+}
+
+.other-pr-card-header:hover {
+  background-color: #2a2a2a;
+}
+
+.toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  position: relative;
+  width: 44px;
+  height: 24px;
+  margin-right: 12px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #333;
+  border: 1px solid #ff4136;
+  border-radius: 24px;
+  transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background-color: #ff4136;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+  transform: translateX(20px);
+}
+
+.other-pr-card-icon {
+  margin-right: 12px;
+}
+
+.other-pr-card-label {
+  flex: 1;
+  font-size: 16px;
+  font-weight: bold;
+  color: #fff;
+}
+
+.other-pr-card-content {
+  padding: 0 15px 15px 15px;
+  border-top: 1px solid #333;
 }

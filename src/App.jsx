@@ -41,6 +41,10 @@ function App() {
   const [expandedCard, setExpandedCard] = useState(null);
   const [prDates, setPrDates] = useState(['', '', '']);
   const [prNotes, setPrNotes] = useState(['', '', '']);
+  const [otherPRValues, setOtherPRValues] = useState(['', '', '']);
+  const [otherPRActive, setOtherPRActive] = useState([false, false, false]);
+  const [otherPRDates, setOtherPRDates] = useState(['', '', '']);
+  const [otherPRNotes, setOtherPRNotes] = useState(['', '', '']);
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -95,7 +99,11 @@ function App() {
         dObj: 0,
         bw: '',
         prDate: ['', '', ''],
-        prNotes: ['', '', '']
+        prNotes: ['', '', ''],
+        otherPR: ['', '', ''],
+        otherPRActive: [false, false, false],
+        otherPRDate: ['', '', ''],
+        otherPRNotes: ['', '', '']
       });
       loadUserData(lowercaseUsername);
       setCurrentPage('Me');
@@ -125,6 +133,10 @@ function App() {
       setGender(userData.gender || '');
       setPrDates(userData.prDate || ['', '', '']);
       setPrNotes(userData.prNotes || ['', '', '']);
+      setOtherPRValues(userData.otherPR || ['', '', '']);
+      setOtherPRActive(userData.otherPRActive || [false, false, false]);
+      setOtherPRDates(userData.otherPRDate || ['', '', '']);
+      setOtherPRNotes(userData.otherPRNotes || ['', '', '']);
     }
   };
 
@@ -164,7 +176,11 @@ function App() {
       bw: bw || null,
       gender: gender || null,
       prDate: prDates,
-      prNotes: prNotes
+      prNotes: prNotes,
+      otherPR: otherPRValues,
+      otherPRActive: otherPRActive,
+      otherPRDate: otherPRDates,
+      otherPRNotes: otherPRNotes
     });
     alert('Dati salvati con successo');
   };
@@ -316,6 +332,12 @@ function App() {
       { key: 'd', label: 'Deadlift', icon: <Activity size={28} color="#fff" />, index: 2 },
     ];
 
+    const otherExercises = [
+      { key: 'dips', label: 'Dips', icon: <Activity size={28} color="#fff" /> },
+      { key: 'chinup', label: 'Chin Up', icon: <Activity size={28} color="#fff" /> },
+      { key: 'military', label: 'Military Press', icon: <Target size={28} color="#fff" /> },
+    ];
+
     const getPrPercentage = (index) => {
       const current = parseFloat(bottomNumbers[index]);
       const goal = parseFloat(topNumbers[index]);
@@ -326,7 +348,7 @@ function App() {
     return (
       <>
         <div className="me-total">
-          Totale attuale: <span>{bottomNumbers[3] || '0'} kg</span>
+          Totale attuale: <span className="me-total-value">{bottomNumbers[3] || '0'} kg</span>
         </div>
 
         <div className="personal-info-section">
@@ -358,7 +380,7 @@ function App() {
         </div>
 
         <div className="pr-cards-section">
-          <div className="section-title">Personal Record</div>
+          <div className="section-title">PowerLifting Personal Record</div>
           {exercises.map((ex) => (
             <div key={ex.key} className={`pr-card ${expandedCard === ex.index ? 'expanded' : ''}`}>
               <div className="pr-card-header" onClick={() => setExpandedCard(expandedCard === ex.index ? null : ex.index)}>
@@ -379,15 +401,6 @@ function App() {
                       />
                     </div>
                     <div className="pr-field">
-                      <label>Obiettivo</label>
-                      <input
-                        type="number"
-                        value={topNumbers[ex.index]}
-                        onChange={(e) => handleNumberChange(ex.index, true, e.target.value)}
-                        className="pr-input"
-                      />
-                    </div>
-                    <div className="pr-field">
                       <label>Data</label>
                       <input
                         type="date"
@@ -397,6 +410,17 @@ function App() {
                           next[ex.index] = e.target.value;
                           setPrDates(next);
                         }}
+                        className="pr-input"
+                      />
+                    </div>
+                  </div>
+                  <div className="pr-field-row">
+                    <div className="pr-field-full">
+                      <label>Obiettivo</label>
+                      <input
+                        type="number"
+                        value={topNumbers[ex.index]}
+                        onChange={(e) => handleNumberChange(ex.index, true, e.target.value)}
                         className="pr-input"
                       />
                     </div>
@@ -429,6 +453,82 @@ function App() {
                       />
                     </div>
                     <span className="pr-percentage-value">{getPrPercentage(ex.index).toFixed(1)}%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="other-pr-section">
+          <div className="section-title">Other Personal Record</div>
+          {otherExercises.map((ex, idx) => (
+            <div key={ex.key} className={`other-pr-card ${otherPRActive[idx] ? 'expanded' : ''}`}>
+              <div className="other-pr-card-header" onClick={() => {
+                const next = [...otherPRActive];
+                next[idx] = !next[idx];
+                setOtherPRActive(next);
+              }}>
+                <label className="toggle-switch">
+                  <input
+                    type="checkbox"
+                    checked={otherPRActive[idx]}
+                    onChange={(e) => {
+                      const next = [...otherPRActive];
+                      next[idx] = e.target.checked;
+                      setOtherPRActive(next);
+                    }}
+                  />
+                  <span className="toggle-slider"></span>
+                </label>
+                <div className="other-pr-card-icon">{ex.icon}</div>
+                <span className="other-pr-card-label">{ex.label}</span>
+              </div>
+              {otherPRActive[idx] && (
+                <div className="other-pr-card-content">
+                  <div className="pr-field-row">
+                    <div className="pr-field">
+                      <label>Valore</label>
+                      <input
+                        type="number"
+                        value={otherPRValues[idx]}
+                        onChange={(e) => {
+                          const next = [...otherPRValues];
+                          next[idx] = e.target.value;
+                          setOtherPRValues(next);
+                        }}
+                        className="pr-input"
+                      />
+                    </div>
+                    <div className="pr-field">
+                      <label>Data</label>
+                      <input
+                        type="date"
+                        value={otherPRDates[idx]}
+                        onChange={(e) => {
+                          const next = [...otherPRDates];
+                          next[idx] = e.target.value;
+                          setOtherPRDates(next);
+                        }}
+                        className="pr-input"
+                      />
+                    </div>
+                  </div>
+                  <div className="pr-field-row">
+                    <div className="pr-field-full">
+                      <label>Note</label>
+                      <textarea
+                        value={otherPRNotes[idx]}
+                        onChange={(e) => {
+                          const next = [...otherPRNotes];
+                          next[idx] = e.target.value;
+                          setOtherPRNotes(next);
+                        }}
+                        className="pr-textarea"
+                        placeholder="Aggiungi note..."
+                        rows={2}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
