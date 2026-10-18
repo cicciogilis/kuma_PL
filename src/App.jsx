@@ -38,6 +38,10 @@ function App() {
   const [bw, setBw] = useState('');
   const [leaderboardData, setLeaderboardData] = useState([]);
   const [gender, setGender] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [showUsernameOnLeaderboard, setShowUsernameOnLeaderboard] = useState(false);
   const [expandedCard, setExpandedCard] = useState(null);
   const [prDates, setPrDates] = useState(['', '', '']);
   const [prNotes, setPrNotes] = useState(['', '', '']);
@@ -104,14 +108,18 @@ function App() {
         bw: '',
         prDate: ['', '', ''],
         prNotes: ['', '', ''],
-        otherPR: ['', '', ''],
-        otherPRActive: [false, false, false],
-        otherPRDate: ['', '', ''],
-        otherPRNotes: ['', '', ''],
+        otherPR: ['', '', '', ''],
+        otherPRActive: [false, false, false, false],
+        otherPRDate: ['', '', '', ''],
+        otherPRNotes: ['', '', '', ''],
         previousBottomNumbers: ['', '', ''],
-        previousOtherPRValues: ['', '', ''],
-        otherPRGoalValues: ['', '', ''],
-        nextWorkout: ''
+        previousOtherPRValues: ['', '', '', ''],
+        otherPRGoalValues: ['', '', '', ''],
+        nextWorkout: '',
+        firstName: '',
+        lastName: '',
+        birthDate: '',
+        showUsernameOnLeaderboard: false
       });
       loadUserData(lowercaseUsername);
       setCurrentPage('Me');
@@ -149,6 +157,10 @@ function App() {
       setPreviousOtherPRValues(userData.previousOtherPRValues || ['', '', '']);
       setOtherPRGoalValues(userData.otherPRGoalValues || ['', '', '']);
       setNextWorkout(userData.nextWorkout || '');
+      setFirstName(userData.firstName || '');
+      setLastName(userData.lastName || '');
+      setBirthDate(userData.birthDate || '');
+      setShowUsernameOnLeaderboard(userData.showUsernameOnLeaderboard || false);
     }
   };
 
@@ -199,7 +211,11 @@ function App() {
       previousBottomNumbers: [...bottomNumbers],
       previousOtherPRValues: [...otherPRValues],
       otherPRGoalValues: [...otherPRGoalValues],
-      nextWorkout: nextWorkout || null
+      nextWorkout: nextWorkout || null,
+      firstName: firstName || null,
+      lastName: lastName || null,
+      birthDate: birthDate || null,
+      showUsernameOnLeaderboard: showUsernameOnLeaderboard
     });
   };
 
@@ -211,6 +227,9 @@ function App() {
       const userData = childSnapshot.val();
       leaderboardData.push({
         username: userData.username,
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        showUsernameOnLeaderboard: userData.showUsernameOnLeaderboard || false,
         s: userData.s || '',
         b: userData.b || '',
         d: userData.d || '',
@@ -303,6 +322,24 @@ function App() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
         />
+        <input
+          type="text"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          placeholder="Nome"
+        />
+        <input
+          type="text"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          placeholder="Cognome"
+        />
+        <input
+          type="date"
+          value={birthDate}
+          onChange={(e) => setBirthDate(e.target.value)}
+          placeholder="Data di Nascita"
+        />
         <button type="submit" className="login-button">Login / Registrati</button>
       </form>
     </div>
@@ -384,6 +421,54 @@ function App() {
         <div className="personal-info-section">
           <div className="section-title">Informazioni personali</div>
           <div className="personal-info-grid">
+            <div className="info-item">
+              <div className="info-label">Nome</div>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => { setFirstName(e.target.value); handleSave(); }}
+                className="info-input"
+                placeholder="Nome"
+              />
+            </div>
+            <div className="info-item">
+              <div className="info-label">Cognome</div>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => { setLastName(e.target.value); handleSave(); }}
+                className="info-input"
+                placeholder="Cognome"
+              />
+            </div>
+            <div className="info-item">
+              <div className="info-label">Data di Nascita</div>
+              <input
+                type="date"
+                value={birthDate}
+                onChange={(e) => { setBirthDate(e.target.value); handleSave(); }}
+                className="info-input"
+              />
+            </div>
+            <div className="info-item">
+              <div className="info-label">Username</div>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => { setUsername(e.target.value); handleSave(); }}
+                className="info-input"
+                placeholder="Username"
+              />
+              <label className="toggle-switch" style={{ marginTop: '8px', display: 'inline-flex' }}>
+                <input
+                  type="checkbox"
+                  checked={showUsernameOnLeaderboard}
+                  onChange={(e) => { setShowUsernameOnLeaderboard(e.target.checked); handleSave(); }}
+                />
+                <span className="toggle-slider"></span>
+              </label>
+              <span style={{ fontSize: '12px', color: '#ccc', marginLeft: '6px' }}>Mostra username su Leader Board</span>
+            </div>
             <div className="info-item">
               <div className="info-label">Peso corporeo</div>
               <input

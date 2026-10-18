@@ -115,7 +115,7 @@ const LeaderboardWithSorting = ({ data }) => {
                   {items.map((item, index) => (
                     <tr key={item.username}>
                       <td className="position-name">
-                        <span className="position">{index + 1}.</span> {item.username}
+                        <span className="position">{index + 1}.</span> {item.showUsernameOnLeaderboard ? item.username : (item.firstName && item.lastName ? `${item.firstName} ${item.lastName}` : item.username)}
                       </td>
                       {sortBy !== 'ratioDesc' && sortBy !== 'bwDesc' && sortBy !== 'ipfDesc' && <td>{item.s}</td>}
                       {sortBy !== 'ratioDesc' && sortBy !== 'bwDesc' && sortBy !== 'ipfDesc' && <td>{item.b}</td>}
