@@ -376,10 +376,6 @@ function App() {
 
     return (
       <>
-        <div className="me-total">
-          <span className="me-total-value">{bottomNumbers[3] || '0'} kg</span>
-        </div>
-
         <div className="personal-info-section">
           <div className="section-title">Informazioni personali</div>
           <div className="personal-info-grid">
@@ -409,7 +405,10 @@ function App() {
         </div>
 
         <div className="pr-cards-section">
-          <div className="section-title">PowerLifting Personal Record</div>
+          <div className="section-title">Powerlifting Personal Record</div>
+          <div className="me-total">
+            <span className="me-total-value">{bottomNumbers[3] || '0'} kg</span>
+          </div>
           {exercises.map((ex) => (
             <div key={ex.key} className={`pr-card ${expandedCard === ex.index ? 'expanded' : ''}`}>
               <div className="pr-card-header" onClick={() => setExpandedCard(expandedCard === ex.index ? null : ex.index)}>
