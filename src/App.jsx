@@ -41,10 +41,13 @@ function App() {
   const [expandedCard, setExpandedCard] = useState(null);
   const [prDates, setPrDates] = useState(['', '', '']);
   const [prNotes, setPrNotes] = useState(['', '', '']);
+  const [previousBottomNumbers, setPreviousBottomNumbers] = useState(['', '', '']);
   const [otherPRValues, setOtherPRValues] = useState(['', '', '']);
   const [otherPRActive, setOtherPRActive] = useState([false, false, false]);
   const [otherPRDates, setOtherPRDates] = useState(['', '', '']);
   const [otherPRNotes, setOtherPRNotes] = useState(['', '', '']);
+  const [previousOtherPRValues, setPreviousOtherPRValues] = useState(['', '', '']);
+  const [otherPRGoalValues, setOtherPRGoalValues] = useState(['', '', '']);
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -103,7 +106,10 @@ function App() {
         otherPR: ['', '', ''],
         otherPRActive: [false, false, false],
         otherPRDate: ['', '', ''],
-        otherPRNotes: ['', '', '']
+        otherPRNotes: ['', '', ''],
+        previousBottomNumbers: ['', '', ''],
+        previousOtherPRValues: ['', '', ''],
+        otherPRGoalValues: ['', '', '']
       });
       loadUserData(lowercaseUsername);
       setCurrentPage('Me');
@@ -137,6 +143,9 @@ function App() {
       setOtherPRActive(userData.otherPRActive || [false, false, false]);
       setOtherPRDates(userData.otherPRDate || ['', '', '']);
       setOtherPRNotes(userData.otherPRNotes || ['', '', '']);
+      setPreviousBottomNumbers(userData.previousBottomNumbers || ['', '', '']);
+      setPreviousOtherPRValues(userData.previousOtherPRValues || ['', '', '']);
+      setOtherPRGoalValues(userData.otherPRGoalValues || ['', '', '']);
     }
   };
 
@@ -166,6 +175,8 @@ function App() {
 
     const handleSave = async () => {
     const userRef = ref(db, `users/${username.toLowerCase().replace(/\s/g, '')}`);
+    setPreviousBottomNumbers([...bottomNumbers]);
+    setPreviousOtherPRValues([...otherPRValues]);
     await update(userRef, {
       s: bottomNumbers[0] || null,
       b: bottomNumbers[1] || null,
@@ -180,7 +191,10 @@ function App() {
       otherPR: otherPRValues,
       otherPRActive: otherPRActive,
       otherPRDate: otherPRDates,
-      otherPRNotes: otherPRNotes
+      otherPRNotes: otherPRNotes,
+      previousBottomNumbers: [...bottomNumbers],
+      previousOtherPRValues: [...otherPRValues],
+      otherPRGoalValues: [...otherPRGoalValues]
     });
     alert('Dati salvati con successo');
   };
@@ -327,8 +341,8 @@ function App() {
 
   const renderMePage = () => {
     const exercises = [
-      { key: 's', label: 'Squat', icon: <Dumbbell size={28} color="#fff" />, index: 0 },
-      { key: 'b', label: 'Bench', icon: <Target size={28} color="#fff" />, index: 1 },
+      { key: 's', label: 'Squat', icon: <img src="/squat.png" alt="Squat" className="img-no-black-bg pr-card-icon-img" />, index: 0 },
+      { key: 'b', label: 'Bench', icon: <img src="/bench-press.png" alt="Bench" className="img-no-black-bg pr-card-icon-img" />, index: 1 },
       { key: 'd', label: 'Deadlift', icon: <Activity size={28} color="#fff" />, index: 2 },
     ];
 
@@ -338,17 +352,32 @@ function App() {
       { key: 'military', label: 'Military Press', icon: <Target size={28} color="#fff" /> },
     ];
 
-    const getPrPercentage = (index) => {
-      const current = parseFloat(bottomNumbers[index]);
-      const goal = parseFloat(topNumbers[index]);
-      if (!current || !goal) return 0;
-      return Math.min((current / goal) * 100, 100);
+    const getPrPercentage = (index, isOther = false) => {
+      if (isOther) {
+        const current = parseFloat(otherPRValues[index]);
+        const goal = parseFloat(otherPRGoalValues[index] || '0');
+        const previous = parseFloat(previousOtherPRValues[index] || '0');
+        if (!current || !goal) return 0;
+        const base = previous || 0;
+        const diff = goal - base;
+        if (diff === 0) return 0;
+        return Math.min(((current - base) / diff) * 100, 100);
+      } else {
+        const current = parseFloat(bottomNumbers[index]);
+        const goal = parseFloat(topNumbers[index]);
+        const previous = parseFloat(previousBottomNumbers[index] || '0');
+        if (!current || !goal) return 0;
+        const base = previous || 0;
+        const diff = goal - base;
+        if (diff === 0) return 0;
+        return Math.min(((current - base) / diff) * 100, 100);
+      }
     };
 
     return (
       <>
         <div className="me-total">
-          Totale attuale: <span className="me-total-value">{bottomNumbers[3] || '0'} kg</span>
+          <span className="me-total-value">{bottomNumbers[3] || '0'} kg</span>
         </div>
 
         <div className="personal-info-section">
@@ -384,7 +413,7 @@ function App() {
           {exercises.map((ex) => (
             <div key={ex.key} className={`pr-card ${expandedCard === ex.index ? 'expanded' : ''}`}>
               <div className="pr-card-header" onClick={() => setExpandedCard(expandedCard === ex.index ? null : ex.index)}>
-                <div className="pr-card-icon">{ex.icon}</div>
+                <div className="pr-card-icon-container">{ex.icon}</div>
                 <span className="pr-card-label">{ex.label}</span>
                 {expandedCard === ex.index ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
               </div>
@@ -464,16 +493,18 @@ function App() {
           <div className="section-title">Other Personal Record</div>
           {otherExercises.map((ex, idx) => (
             <div key={ex.key} className={`other-pr-card ${otherPRActive[idx] ? 'expanded' : ''}`}>
-              <div className="other-pr-card-header" onClick={() => {
+              <div className="other-pr-card-header" onClick={(e) => {
+                e.stopPropagation();
                 const next = [...otherPRActive];
                 next[idx] = !next[idx];
                 setOtherPRActive(next);
               }}>
-                <label className="toggle-switch">
+                <label className="toggle-switch" onClick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={otherPRActive[idx]}
                     onChange={(e) => {
+                      e.stopPropagation();
                       const next = [...otherPRActive];
                       next[idx] = e.target.checked;
                       setOtherPRActive(next);
@@ -488,7 +519,7 @@ function App() {
                 <div className="other-pr-card-content">
                   <div className="pr-field-row">
                     <div className="pr-field">
-                      <label>Valore</label>
+                      <label>Attuale</label>
                       <input
                         type="number"
                         value={otherPRValues[idx]}
@@ -516,6 +547,21 @@ function App() {
                   </div>
                   <div className="pr-field-row">
                     <div className="pr-field-full">
+                      <label>Obiettivo</label>
+                      <input
+                        type="number"
+                        value={otherPRGoalValues[idx] || ''}
+                        onChange={(e) => {
+                          const next = [...otherPRGoalValues];
+                          next[idx] = e.target.value;
+                          setOtherPRGoalValues(next);
+                        }}
+                        className="pr-input"
+                      />
+                    </div>
+                  </div>
+                  <div className="pr-field-row">
+                    <div className="pr-field-full">
                       <label>Note</label>
                       <textarea
                         value={otherPRNotes[idx]}
@@ -529,6 +575,19 @@ function App() {
                         rows={2}
                       />
                     </div>
+                  </div>
+                  <div className="pr-percentage-row">
+                    <span className="pr-percentage-label">Progresso verso obiettivo</span>
+                    <div className="pr-percentage-bar-container">
+                      <div
+                        className="pr-percentage-bar"
+                        style={{
+                          width: `${getPrPercentage(idx, true)}%`,
+                          backgroundColor: getColor(getPrPercentage(idx, true)),
+                        }}
+                      />
+                    </div>
+                    <span className="pr-percentage-value">{getPrPercentage(idx, true).toFixed(1)}%</span>
                   </div>
                 </div>
               )}

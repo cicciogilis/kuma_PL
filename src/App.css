@@ -280,6 +280,18 @@ body {
   margin-right: 15px;
 }
 
+.pr-card-icon-container {
+  display: flex;
+  align-items: center;
+  margin-right: 15px;
+}
+
+.pr-card-icon-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
 .pr-card-label {
   flex: 1;
   font-size: 18px;
@@ -617,7 +629,7 @@ body {
 }
 
 .app-background {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: -1;
   pointer-events: none;
@@ -627,6 +639,10 @@ body {
   background-repeat: no-repeat;
   opacity: 0.12;
   filter: grayscale(100%);
+}
+
+.img-no-black-bg {
+  mix-blend-mode: screen;
 }
 
 .other-pr-section {
