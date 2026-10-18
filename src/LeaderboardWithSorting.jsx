@@ -82,7 +82,7 @@ const LeaderboardWithSorting = ({ data }) => {
             onChange={(e) => setSortBy(e.target.value)}
           >
             <option value="sDesc">Squat</option>
-            <option value="bDesc">Bench</option>
+            <option value="bDesc">Bench Press</option>
             <option value="dDesc">Deadlift</option>
             <option value="bwDesc">Categoria</option>
             <option value="totalDesc">Totale</option>
@@ -103,7 +103,7 @@ const LeaderboardWithSorting = ({ data }) => {
                   <tr>
                     <th className="position-name">Nome</th>
                     {sortBy !== 'ratioDesc' && sortBy !== 'bwDesc' && sortBy !== 'ipfDesc' && <th>Squat</th>}
-                    {sortBy !== 'ratioDesc' && sortBy !== 'bwDesc' && sortBy !== 'ipfDesc' && <th>Bench</th>}
+                    {sortBy !== 'ratioDesc' && sortBy !== 'bwDesc' && sortBy !== 'ipfDesc' && <th>Bench Press</th>}
                     {sortBy !== 'ratioDesc' && sortBy !== 'bwDesc' && sortBy !== 'ipfDesc' && <th>Deadlift</th>}
                     {(sortBy === 'ratioDesc' || sortBy === 'bwDesc' || sortBy === 'ipfDesc') && <th>BW</th>}
                     {sortBy !== 'ipfDesc' && <th>Totale</th>}

@@ -41,6 +41,8 @@ function App() {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [birthCity, setBirthCity] = useState('');
+  const [birthProvince, setBirthProvince] = useState('');
   const [showUsernameOnLeaderboard, setShowUsernameOnLeaderboard] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [expandedCard, setExpandedCard] = useState(null);
@@ -96,10 +98,6 @@ function App() {
       }
     } else {
       if (isRegistering) {
-        if (!firstName || !lastName || !birthDate || !gender) {
-          alert('Compila tutti i campi');
-          return;
-        }
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(loginPassword, saltRounds);
         await set(userRef, {
@@ -125,6 +123,8 @@ function App() {
           firstName: firstName || '',
           lastName: lastName || '',
           birthDate: birthDate || '',
+          birthCity: birthCity || '',
+          birthProvince: birthProvince || '',
           gender: gender || '',
           showUsernameOnLeaderboard: false
         });
@@ -164,12 +164,14 @@ function App() {
       setOtherPRDates(userData.otherPRDate || ['', '', '']);
       setOtherPRNotes(userData.otherPRNotes || ['', '', '']);
       setPreviousBottomNumbers(userData.previousBottomNumbers || ['', '', '']);
-      setPreviousOtherPRValues(userData.previousOtherPRValues || ['', '', '']);
-      setOtherPRGoalValues(userData.otherPRGoalValues || ['', '', '']);
+      setPreviousOtherPRValues(userData.previousOtherPRValues || ['', '', '', '']);
+      setOtherPRGoalValues(userData.otherPRGoalValues || ['', '', '', '']);
       setNextWorkout(userData.nextWorkout || '');
       setFirstName(userData.firstName || '');
       setLastName(userData.lastName || '');
       setBirthDate(userData.birthDate || '');
+      setBirthCity(userData.birthCity || '');
+      setBirthProvince(userData.birthProvince || '');
       setShowUsernameOnLeaderboard(userData.showUsernameOnLeaderboard || false);
     }
   };
@@ -225,6 +227,8 @@ function App() {
       firstName: firstName || null,
       lastName: lastName || null,
       birthDate: birthDate || null,
+      birthCity: birthCity || null,
+      birthProvince: birthProvince || null,
       showUsernameOnLeaderboard: showUsernameOverride !== undefined ? showUsernameOverride : showUsernameOnLeaderboard
     });
   };
@@ -334,33 +338,6 @@ function App() {
         />
         {isRegistering && (
           <>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="Nome"
-            />
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              placeholder="Cognome"
-            />
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              placeholder="Data di Nascita"
-            />
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              placeholder="Genere"
-            >
-              <option value="">Seleziona genere</option>
-              <option value="M">M</option>
-              <option value="F">F</option>
-            </select>
           </>
         )}
         <button type="submit" className="login-button">{isRegistering ? 'Registrati' : 'Accedi'}</button>
@@ -374,6 +351,72 @@ function App() {
   const renderProfilePage = () => (
     <div className="profile-page">
       <h2>Settings</h2>
+      <div className="profile-section">
+        <h3>Informazioni personali</h3>
+        <div className="personal-info-grid">
+          <div className="info-item">
+            <div className="info-label">Nome</div>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => { setFirstName(e.target.value); handleSave(); }}
+              className="info-input"
+              placeholder="Nome"
+            />
+          </div>
+          <div className="info-item">
+            <div className="info-label">Cognome</div>
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => { setLastName(e.target.value); handleSave(); }}
+              className="info-input"
+              placeholder="Cognome"
+            />
+          </div>
+          <div className="info-item">
+            <div className="info-label">Data di Nascita</div>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => { setBirthDate(e.target.value); handleSave(); }}
+              className="info-input"
+            />
+          </div>
+          <div className="info-item">
+            <div className="info-label">Città di Nascita</div>
+            <input
+              type="text"
+              value={birthCity}
+              onChange={(e) => { setBirthCity(e.target.value); handleSave(); }}
+              className="info-input"
+              placeholder="Città"
+            />
+          </div>
+          <div className="info-item">
+            <div className="info-label">Provincia</div>
+            <input
+              type="text"
+              value={birthProvince}
+              onChange={(e) => { setBirthProvince(e.target.value); handleSave(); }}
+              className="info-input"
+              placeholder="Provincia"
+            />
+          </div>
+          <div className="info-item">
+            <div className="info-label">Genere</div>
+            <select
+              value={gender}
+              onChange={(e) => { setGender(e.target.value); handleSave(); }}
+              className="info-select"
+            >
+              <option value="">Seleziona</option>
+              <option value="M">M</option>
+              <option value="F">F</option>
+            </select>
+          </div>
+        </div>
+      </div>
       <div className="profile-section">
         <h3>Cambia Username</h3>
         <input
@@ -409,7 +452,7 @@ function App() {
   const renderMePage = () => {
     const exercises = [
       { key: 's', label: 'Squat', icon: <img src="/squat.png" alt="Squat" className="img-no-black-bg pr-card-icon-img" />, index: 0 },
-      { key: 'b', label: 'Bench', icon: <img src="/bench-press.png" alt="Bench" className="img-no-black-bg pr-card-icon-img" />, index: 1 },
+      { key: 'b', label: 'Bench Press', icon: <img src="/bench-press.png" alt="Bench Press" className="img-no-black-bg pr-card-icon-img" />, index: 1 },
       { key: 'd', label: 'Deadlift', icon: <img src="/deadlift.jpg" alt="Deadlift" className="img-no-black-bg pr-card-icon-img" />, index: 2 },
     ];
 
