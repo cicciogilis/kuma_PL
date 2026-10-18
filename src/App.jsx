@@ -363,7 +363,7 @@ function App() {
 
   const renderProfilePage = () => (
     <div className="profile-page">
-      <h2>Profilo di {username}</h2>
+      <h2>Settings di {username}</h2>
       <div className="profile-section">
         <h3>Cambia Username</h3>
         <input
@@ -734,7 +734,7 @@ function App() {
         </button>
       <button className="home-card" onClick={() => setCurrentPage('Profile')}>
         <Settings size={48} />
-        <span>Profilo</span>
+        <span>Settings</span>
       </button>
       </div>
       <div className="next-workout-section">
