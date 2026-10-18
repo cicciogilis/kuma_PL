@@ -98,6 +98,18 @@ function App() {
       }
     } else {
       if (isRegistering) {
+        if (!firstName || !lastName || !birthDate || !birthCity || !birthProvince || !gender) {
+          alert('Compila tutti i campi');
+          return;
+        }
+        if (birthCity && !birthProvince) {
+          alert('Inserisci anche la provincia di nascita');
+          return;
+        }
+        if (birthProvince && !birthCity) {
+          alert('Inserisci anche la città di nascita');
+          return;
+        }
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(loginPassword, saltRounds);
         await set(userRef, {
@@ -346,6 +358,45 @@ function App() {
         />
         {isRegistering && (
           <>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Nome"
+            />
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Cognome"
+            />
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              placeholder="Data di Nascita"
+            />
+            <input
+              type="text"
+              value={birthCity}
+              onChange={(e) => setBirthCity(e.target.value)}
+              placeholder="Città di Nascita"
+            />
+            <input
+              type="text"
+              value={birthProvince}
+              onChange={(e) => setBirthProvince(e.target.value)}
+              placeholder="Provincia"
+            />
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              placeholder="Genere"
+            >
+              <option value="">Seleziona genere</option>
+              <option value="M">M</option>
+              <option value="F">F</option>
+            </select>
           </>
         )}
         <button type="submit" className="login-button">{isRegistering ? 'Registrati' : 'Accedi'}</button>
@@ -427,7 +478,7 @@ function App() {
       </div>
       <div className="profile-section">
         <h3>Visualizzazione Leader Board</h3>
-        <label className="toggle-switch" style={{ marginTop: '8px', display: 'inline-flex' }}>
+        <label className="toggle-switch inline-toggle" style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
           <input
             type="checkbox"
             checked={showUsernameOnLeaderboard}
@@ -438,9 +489,9 @@ function App() {
             }}
           />
           <span className="toggle-slider"></span>
+          <span style={{ fontSize: '14px', color: '#ccc', marginLeft: '0' }}>Mostra username su Leader Board</span>
+          <p style={{ fontSize: '12px', color: '#888', marginLeft: '6px' }}>Se disattivato, verrà mostrato Nome Cognome</p>
         </label>
-        <span style={{ fontSize: '14px', color: '#ccc', marginLeft: '8px' }}>Mostra username su Leader Board</span>
-        <p style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>Se disattivato, verrà mostrato Nome Cognome</p>
       </div>
       <div className="profile-section">
         <h3>Cambia Username</h3>
