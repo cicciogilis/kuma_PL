@@ -198,7 +198,7 @@ function App() {
     setPercentages(newPercentages);
   }, [topNumbers, bottomNumbers]);
 
-    const handleSave = async () => {
+    const handleSave = async (showUsernameOverride) => {
     const userRef = ref(db, `users/${username.toLowerCase().replace(/\s/g, '')}`);
     setPreviousBottomNumbers([...bottomNumbers]);
     setPreviousOtherPRValues([...otherPRValues]);
@@ -224,7 +224,7 @@ function App() {
       firstName: firstName || null,
       lastName: lastName || null,
       birthDate: birthDate || null,
-      showUsernameOnLeaderboard: showUsernameOnLeaderboard
+      showUsernameOnLeaderboard: showUsernameOverride !== undefined ? showUsernameOverride : showUsernameOnLeaderboard
     });
   };
 
@@ -478,7 +478,11 @@ function App() {
                 <input
                   type="checkbox"
                   checked={showUsernameOnLeaderboard}
-                  onChange={(e) => { setShowUsernameOnLeaderboard(e.target.checked); handleSave(); }}
+                  onChange={(e) => { 
+                    const newVal = e.target.checked;
+                    setShowUsernameOnLeaderboard(newVal); 
+                    handleSave(newVal); 
+                  }}
                 />
                 <span className="toggle-slider"></span>
               </label>
