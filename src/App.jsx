@@ -363,7 +363,7 @@ function App() {
 
   const renderProfilePage = () => (
     <div className="profile-page">
-      <h2>Settings di {username}</h2>
+      <h2>Settings</h2>
       <div className="profile-section">
         <h3>Cambia Username</h3>
         <input
@@ -435,7 +435,6 @@ function App() {
     return (
       <>
         <div className="personal-info-section">
-          <div className="section-title">Informazioni personali</div>
           <div className="personal-info-grid">
             <div className="info-item">
               <div className="info-label">Nome</div>
