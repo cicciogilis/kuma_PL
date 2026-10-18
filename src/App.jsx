@@ -42,12 +42,12 @@ function App() {
   const [prDates, setPrDates] = useState(['', '', '']);
   const [prNotes, setPrNotes] = useState(['', '', '']);
   const [previousBottomNumbers, setPreviousBottomNumbers] = useState(['', '', '']);
-  const [otherPRValues, setOtherPRValues] = useState(['', '', '']);
-  const [otherPRActive, setOtherPRActive] = useState([false, false, false]);
-  const [otherPRDates, setOtherPRDates] = useState(['', '', '']);
-  const [otherPRNotes, setOtherPRNotes] = useState(['', '', '']);
-  const [previousOtherPRValues, setPreviousOtherPRValues] = useState(['', '', '']);
-  const [otherPRGoalValues, setOtherPRGoalValues] = useState(['', '', '']);
+  const [otherPRValues, setOtherPRValues] = useState(['', '', '', '']);
+  const [otherPRActive, setOtherPRActive] = useState([false, false, false, false]);
+  const [otherPRDates, setOtherPRDates] = useState(['', '', '', '']);
+  const [otherPRNotes, setOtherPRNotes] = useState(['', '', '', '']);
+  const [previousOtherPRValues, setPreviousOtherPRValues] = useState(['', '', '', '']);
+  const [otherPRGoalValues, setOtherPRGoalValues] = useState(['', '', '', '']);
   const [nextWorkout, setNextWorkout] = useState('');
   const [showSplash, setShowSplash] = useState(true);
 
@@ -347,13 +347,14 @@ function App() {
     const exercises = [
       { key: 's', label: 'Squat', icon: <img src="/squat.png" alt="Squat" className="img-no-black-bg pr-card-icon-img" />, index: 0 },
       { key: 'b', label: 'Bench', icon: <img src="/bench-press.png" alt="Bench" className="img-no-black-bg pr-card-icon-img" />, index: 1 },
-      { key: 'd', label: 'Deadlift', icon: <Activity size={28} color="#fff" />, index: 2 },
+      { key: 'd', label: 'Deadlift', icon: <img src="/deadlift.jpg" alt="Deadlift" className="img-no-black-bg pr-card-icon-img" />, index: 2 },
     ];
 
     const otherExercises = [
-      { key: 'dips', label: 'Dips', icon: <Activity size={28} color="#fff" /> },
-      { key: 'chinup', label: 'Chin Up', icon: <Activity size={28} color="#fff" /> },
-      { key: 'military', label: 'Military Press', icon: <Target size={28} color="#fff" /> },
+      { key: 'dips', label: 'Dips', icon: <img src="/dips.jpg" alt="Dips" className="img-no-black-bg pr-card-icon-img" /> },
+      { key: 'chinup', label: 'Chin Up', icon: <img src="/chinup.png" alt="Chin Up" className="img-no-black-bg pr-card-icon-img" /> },
+      { key: 'military', label: 'Military Press', icon: <img src="/military-press.jpg" alt="Military Press" className="img-no-black-bg pr-card-icon-img" /> },
+      { key: 'trazioni', label: 'Trazioni', icon: <img src="/trazioni.png" alt="Trazioni" className="img-no-black-bg pr-card-icon-img" /> },
     ];
 
     const getPrPercentage = (index, isOther = false) => {
