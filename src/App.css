@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Norwill&display=swap');
+
 body {
   background-color: #000;
   color: #fff;
@@ -185,8 +187,8 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start; /* Cambiato da center a flex-start */
-  min-height: calc(100vh - 60px); /* Sottraiamo l'altezza della barra di menu */
+  justify-content: flex-start;
+  min-height: calc(100vh - 60px);
   width: 100%;
   max-width: 400px;
   margin: 0 auto;
@@ -212,6 +214,66 @@ body {
   width: 100%;
   max-width: 500px;
   margin: 0 auto 20px auto;
+}
+
+.profile-photo-section {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.profile-photo-wrapper {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+.profile-photo-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #ff4136;
+  box-shadow: 0 0 20px rgba(255, 65, 54, 0.3);
+}
+
+.profile-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #333;
+  border: 3px solid #ff4136;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+}
+
+.profile-photo-edit-label {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #ff4136;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 3px solid #000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, background-color 0.2s;
+}
+
+.profile-photo-edit-label:hover {
+  transform: scale(1.1);
+  background-color: #e60000;
+}
+
+.profile-photo-file-input {
+  display: none;
 }
 
 .personal-info-grid {
@@ -241,6 +303,28 @@ body {
   border-radius: 5px;
   font-size: 16px;
   box-sizing: border-box;
+}
+
+.info-value {
+  padding: 10px;
+  background-color: #1a1a1a;
+  color: #ccc;
+  border: 1px solid #555;
+  border-radius: 5px;
+  font-size: 16px;
+  box-sizing: border-box;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+}
+
+/* Riquadro username attuale: stessa spaziatura dei campi password */
+.current-username-box {
+  margin-bottom: 10px;
+}
+
+.current-username-box .info-value {
+  width: 100%;
 }
 
 .pr-cards-section {
@@ -395,6 +479,38 @@ body {
   margin: 0 auto;
   padding: 20px;
   box-sizing: border-box;
+}
+
+/* In modalità registrazione la pagina si allarga per la griglia a 2 colonne */
+.login-page.register-mode {
+  max-width: 500px;
+  justify-content: flex-start;
+  padding-top: 40px;
+}
+
+.login-page.register-mode .personal-info-grid {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+/* Gli input dentro la griglia di registrazione usano gli stili info */
+.login-page.register-mode .personal-info-grid .info-input,
+.login-page.register-mode .personal-info-grid .info-select {
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.login-page.register-mode .personal-info-grid .password-input-container {
+  margin-bottom: 0;
+}
+
+.login-page.register-mode .personal-info-grid .password-input-container input.password-input {
+  width: 100%;
+}
+
+/* Username e Password in fondo alla registrazione, distaccati dal resto */
+.login-page.register-mode .personal-info-grid .credentials-item {
+  margin-top: 15px;
 }
 
 .login-logo {
@@ -811,4 +927,119 @@ body {
   align-items: center;
   gap: 10px;
   margin-top: 12px;
+}
+
+.home-header {
+  text-align: center;
+  margin: 25px 0 35px 0;
+}
+
+.home-title {
+  font-family: 'Norwill', sans-serif;
+  font-size: 42px;
+  font-weight: bold;
+  color: #ff4136;
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.home-subtitle {
+  font-family: 'Norwill', sans-serif;
+  font-size: 14px;
+  color: #888;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.home-welcome {
+  text-align: center;
+  font-size: 24px;
+  font-weight: bold;
+  color: #fff;
+  margin: 0 0 35px 0;
+}
+
+.first-login-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.first-login-modal {
+  background-color: #1a1a1a;
+  border: 2px solid #ff4136;
+  border-radius: 16px;
+  padding: 32px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(255, 65, 54, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.first-login-icon {
+  color: #ff4136;
+  margin-bottom: 16px;
+}
+
+.first-login-modal h2 {
+  font-family: 'Norwill', sans-serif;
+  font-size: 24px;
+  color: #ff4136;
+  margin: 0 0 16px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.first-login-modal p {
+  color: #ccc;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 12px 0;
+}
+
+.first-login-modal p strong {
+  color: #fff;
+}
+
+.first-login-btn {
+  margin-top: 24px;
+  padding: 14px 32px;
+  background-color: #ff4136;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  transition: background-color 0.2s, transform 0.1s;
+}
+
+.first-login-btn:hover {
+  background-color: #e60000;
+  transform: scale(1.02);
+}
+
+.first-login-btn:active {
+  transform: scale(0.98);
 }

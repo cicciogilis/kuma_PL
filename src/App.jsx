@@ -4,7 +4,7 @@ import { getDatabase, ref, set, get, update, query, orderByChild } from 'firebas
 import './App.css';
 import bcrypt from 'bcryptjs';
 import PasswordInput from './PasswordInput';
-import { User, Trophy, Settings, Home, Layout, Dumbbell, Target, Activity, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, Trophy, Settings, Home, Layout, Dumbbell, Target, Activity, ChevronDown, ChevronUp, Edit, Camera } from 'lucide-react';
 import LeaderboardWithSorting from './LeaderboardWithSorting';
 
 // Configurazione Firebase
@@ -57,6 +57,9 @@ function App() {
   const [otherPRGoalValues, setOtherPRGoalValues] = useState(['', '', '', '']);
   const [nextWorkout, setNextWorkout] = useState('');
   const [showSplash, setShowSplash] = useState(true);
+  const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+  const [profilePhoto, setProfilePhoto] = useState('');
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -90,7 +93,13 @@ function App() {
       if (isPasswordCorrect) {
         setUsername(userData.username);
         loadUserData(lowercaseUsername);
-        setCurrentPage('Home');
+        if (userData.firstLogin) {
+          await update(userRef, { firstLogin: false });
+          setShowFirstLoginModal(true);
+          setCurrentPage('Me');
+        } else {
+          setCurrentPage('Home');
+        }
         localStorage.setItem('username', userData.username);
         localStorage.setItem('password', loginPassword);
       } else {
@@ -138,9 +147,12 @@ function App() {
           birthCity: birthCity || '',
           birthProvince: birthProvince || '',
           gender: gender || '',
-          showUsernameOnLeaderboard: false
+          showUsernameOnLeaderboard: false,
+          profilePhoto: '',
+          firstLogin: true
         });
         loadUserData(lowercaseUsername);
+        setShowFirstLoginModal(true);
         setCurrentPage('Me');
         localStorage.setItem('username', loginUsername);
         localStorage.setItem('password', loginPassword);
@@ -185,11 +197,26 @@ function App() {
       setBirthCity(userData.birthCity || '');
       setBirthProvince(userData.birthProvince || '');
       setShowUsernameOnLeaderboard(userData.showUsernameOnLeaderboard || false);
+      setProfilePhoto(userData.profilePhoto || '');
     }
   };
 
   const calculateTotal = (numbers) => {
     return numbers.reduce((total, num) => total + (num ? parseFloat(num) : 0), 0).toString();
+  };
+
+  const handleProfilePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const base64 = event.target.result;
+        setProfilePhoto(base64);
+        handleSave({ profilePhoto: base64 });
+      };
+      reader.readAsDataURL(file);
+    }
+    setFileInputKey(prev => prev + 1);
   };
 
   const handleNumberChange = (index, isTop, newValue) => {
@@ -198,10 +225,11 @@ function App() {
     newNumbers[3] = calculateTotal(newNumbers.slice(0, 3));
     if (isTop) {
       setTopNumbers(newNumbers);
+      handleSave({ topNumbers: newNumbers });
     } else {
       setBottomNumbers(newNumbers);
+      handleSave({ bottomNumbers: newNumbers });
     }
-    handleSave();
   };
 
   useEffect(() => {
@@ -213,43 +241,56 @@ function App() {
     setPercentages(newPercentages);
   }, [topNumbers, bottomNumbers]);
 
-    const handleSave = async (showUsernameOverride) => {
-    if (birthCity && !birthProvince) {
+    const handleSave = async (overrides = {}) => {
+    // Retrocompatibilità: se viene passato un booleano, è il toggle showUsername
+    if (typeof overrides === 'boolean') {
+      overrides = { showUsernameOnLeaderboard: overrides };
+    }
+    const merged = {
+      bottomNumbers, topNumbers, bw, gender, prDates, prNotes,
+      otherPRValues, otherPRActive, otherPRDates, otherPRNotes,
+      otherPRGoalValues, nextWorkout, firstName, lastName,
+      birthDate, birthCity, birthProvince, showUsernameOnLeaderboard,
+      profilePhoto,
+      ...overrides,
+    };
+    if (merged.birthCity && !merged.birthProvince) {
       alert('Inserisci anche la provincia di nascita');
       return;
     }
-    if (birthProvince && !birthCity) {
+    if (merged.birthProvince && !merged.birthCity) {
       alert('Inserisci anche la città di nascita');
       return;
     }
     const userRef = ref(db, `users/${username.toLowerCase().replace(/\s/g, '')}`);
-    setPreviousBottomNumbers([...bottomNumbers]);
-    setPreviousOtherPRValues([...otherPRValues]);
+    setPreviousBottomNumbers([...merged.bottomNumbers]);
+    setPreviousOtherPRValues([...merged.otherPRValues]);
     await update(userRef, {
-      s: bottomNumbers[0] || null,
-      b: bottomNumbers[1] || null,
-      d: bottomNumbers[2] || null,
-      sObj: topNumbers[0] || null,
-      bObj: topNumbers[1] || null,
-      dObj: topNumbers[2] || null,
-      bw: bw || null,
-      gender: gender || null,
-      prDate: prDates,
-      prNotes: prNotes,
-      otherPR: otherPRValues,
-      otherPRActive: otherPRActive,
-      otherPRDate: otherPRDates,
-      otherPRNotes: otherPRNotes,
-      previousBottomNumbers: [...bottomNumbers],
-      previousOtherPRValues: [...otherPRValues],
-      otherPRGoalValues: [...otherPRGoalValues],
-      nextWorkout: nextWorkout || null,
-      firstName: firstName || null,
-      lastName: lastName || null,
-      birthDate: birthDate || null,
-      birthCity: birthCity || null,
-      birthProvince: birthProvince || null,
-      showUsernameOnLeaderboard: showUsernameOverride !== undefined ? showUsernameOverride : showUsernameOnLeaderboard
+      s: merged.bottomNumbers[0] || null,
+      b: merged.bottomNumbers[1] || null,
+      d: merged.bottomNumbers[2] || null,
+      sObj: merged.topNumbers[0] || null,
+      bObj: merged.topNumbers[1] || null,
+      dObj: merged.topNumbers[2] || null,
+      bw: merged.bw || null,
+      gender: merged.gender || null,
+      prDate: merged.prDates,
+      prNotes: merged.prNotes,
+      otherPR: merged.otherPRValues,
+      otherPRActive: merged.otherPRActive,
+      otherPRDate: merged.otherPRDates,
+      otherPRNotes: merged.otherPRNotes,
+      previousBottomNumbers: [...merged.bottomNumbers],
+      previousOtherPRValues: [...merged.otherPRValues],
+      otherPRGoalValues: [...merged.otherPRGoalValues],
+      nextWorkout: merged.nextWorkout || null,
+      firstName: merged.firstName || null,
+      lastName: merged.lastName || null,
+      birthDate: merged.birthDate || null,
+      birthCity: merged.birthCity || null,
+      birthProvince: merged.birthProvince || null,
+      showUsernameOnLeaderboard: merged.showUsernameOnLeaderboard,
+      profilePhoto: merged.profilePhoto || null
     });
   };
 
@@ -259,18 +300,35 @@ function App() {
     const leaderboardData = [];
     snapshot.forEach((childSnapshot) => {
       const userData = childSnapshot.val();
+      
+      // Parse lift values safely
+      const s = userData.s != null ? parseFloat(userData.s) : 0;
+      const b = userData.b != null ? parseFloat(userData.b) : 0;
+      const d = userData.d != null ? parseFloat(userData.d) : 0;
+      const bw = userData.bw != null ? parseFloat(userData.bw) : 0;
+      
+      // Only include users with at least one valid main lift (> 0)
+      const hasValidMainLift = (s > 0) || (b > 0) || (d > 0);
+      if (!hasValidMainLift) return;
+      
+      const otherPR = userData.otherPR || ['', '', '', ''];
+      const otherPRActive = userData.otherPRActive || [false, false, false, false];
+      
       leaderboardData.push({
         username: userData.username,
         firstName: userData.firstName || '',
         lastName: userData.lastName || '',
         showUsernameOnLeaderboard: userData.showUsernameOnLeaderboard || false,
-        s: userData.s || '',
-        b: userData.b || '',
-        d: userData.d || '',
-        bw: userData.bw || '',
+        profilePhoto: userData.profilePhoto || '',
+        s: s > 0 ? String(s) : '',
+        b: b > 0 ? String(b) : '',
+        d: d > 0 ? String(d) : '',
+        bw: bw > 0 ? String(bw) : '',
         gender: userData.gender || '',
-        total: calculateTotal([userData.s, userData.b, userData.d]),
-        
+        birthDate: userData.birthDate || '',
+        otherPRValues: otherPR,
+        otherPRActive: otherPRActive,
+        total: (s + b + d) > 0 ? String(s + b + d) : '',
       });
     });
     setLeaderboardData(leaderboardData);
@@ -340,64 +398,111 @@ function App() {
   );
 
   const renderLoginPage = () => (
-    <div className="login-page">
+    <div className={`login-page ${isRegistering ? 'register-mode' : ''}`}>
       <img src="/logo512.png" alt="Kuma Logo" className="login-logo" />
       <h2>{isRegistering ? 'Registrazione' : 'Login'}</h2>
       <form onSubmit={handleLogin}>
-        <input
-          type="text"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Username"
-          required
-        />
-        <PasswordInput
-          value={password} 
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-        />
-        {isRegistering && (
+        {!isRegistering && (
           <>
             <input
               type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              placeholder="Nome"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Username"
+              required
             />
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              placeholder="Cognome"
+            <PasswordInput
+              value={password} 
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
             />
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              placeholder="Data di Nascita"
-            />
-            <input
-              type="text"
-              value={birthCity}
-              onChange={(e) => setBirthCity(e.target.value)}
-              placeholder="Città di Nascita"
-            />
-            <input
-              type="text"
-              value={birthProvince}
-              onChange={(e) => setBirthProvince(e.target.value)}
-              placeholder="Provincia"
-            />
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              className="info-select"
-              placeholder="Genere"
-            >
-              <option value="">Seleziona genere</option>
-              <option value="M">M</option>
-              <option value="F">F</option>
-            </select>
+          </>
+        )}
+        {isRegistering && (
+          <>
+            <div className="personal-info-grid">
+              <div className="info-item">
+                <div className="info-label">Nome</div>
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Nome"
+                  className="info-input"
+                />
+              </div>
+              <div className="info-item">
+                <div className="info-label">Cognome</div>
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Cognome"
+                  className="info-input"
+                />
+              </div>
+              <div className="info-item">
+                <div className="info-label">Data di Nascita</div>
+                <input
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  placeholder="Data di Nascita"
+                  className="info-input"
+                />
+              </div>
+              <div className="info-item">
+                <div className="info-label">Genere</div>
+                <select
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="info-select"
+                >
+                  <option value="">Seleziona genere</option>
+                  <option value="M">M</option>
+                  <option value="F">F</option>
+                </select>
+              </div>
+              <div className="info-item">
+                <div className="info-label">Città di Nascita</div>
+                <input
+                  type="text"
+                  value={birthCity}
+                  onChange={(e) => setBirthCity(e.target.value)}
+                  placeholder="Città di Nascita"
+                  className="info-input"
+                />
+              </div>
+              <div className="info-item">
+                <div className="info-label">Provincia</div>
+                <input
+                  type="text"
+                  value={birthProvince}
+                  onChange={(e) => setBirthProvince(e.target.value)}
+                  placeholder="Provincia"
+                  className="info-input"
+                />
+              </div>
+              <div className="info-item credentials-item">
+                <div className="info-label">Username</div>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="Username"
+                  required
+                  className="info-input"
+                />
+              </div>
+              <div className="info-item credentials-item">
+                <div className="info-label">Password</div>
+                <PasswordInput
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                />
+              </div>
+            </div>
           </>
         )}
         <button type="submit" className="login-button">{isRegistering ? 'Registrati' : 'Accedi'}</button>
@@ -413,67 +518,51 @@ function App() {
       <h2>Settings</h2>
       <div className="profile-section">
         <h3>Informazioni personali</h3>
+        <div className="profile-photo-section">
+          <div className="profile-photo-wrapper">
+            {profilePhoto ? (
+              <img src={profilePhoto} alt="Profile" className="profile-photo-img" />
+            ) : (
+              <div className="profile-photo-placeholder">
+                <User size={48} />
+              </div>
+            )}
+            <label className="profile-photo-edit-label">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleProfilePhotoChange}
+                className="profile-photo-file-input"
+                key={fileInputKey}
+              />
+              <Camera size={20} />
+            </label>
+          </div>
+        </div>
         <div className="personal-info-grid">
           <div className="info-item">
             <div className="info-label">Nome</div>
-            <input
-              type="text"
-              value={firstName}
-              onChange={(e) => { setFirstName(e.target.value); handleSave(); }}
-              className="info-input"
-              placeholder="Nome"
-            />
+            <div className="info-value">{firstName || '—'}</div>
           </div>
           <div className="info-item">
             <div className="info-label">Cognome</div>
-            <input
-              type="text"
-              value={lastName}
-              onChange={(e) => { setLastName(e.target.value); handleSave(); }}
-              className="info-input"
-              placeholder="Cognome"
-            />
+            <div className="info-value">{lastName || '—'}</div>
           </div>
           <div className="info-item">
             <div className="info-label">Data di Nascita</div>
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => { setBirthDate(e.target.value); handleSave(); }}
-              className="info-input"
-            />
+            <div className="info-value">{birthDate || '—'}</div>
           </div>
           <div className="info-item">
             <div className="info-label">Città di Nascita</div>
-            <input
-              type="text"
-              value={birthCity}
-              onChange={(e) => { setBirthCity(e.target.value); handleSave(); }}
-              className="info-input"
-              placeholder="Città"
-            />
+            <div className="info-value">{birthCity || '—'}</div>
           </div>
           <div className="info-item">
             <div className="info-label">Provincia</div>
-            <input
-              type="text"
-              value={birthProvince}
-              onChange={(e) => { setBirthProvince(e.target.value); handleSave(); }}
-              className="info-input"
-              placeholder="Provincia"
-            />
+            <div className="info-value">{birthProvince || '—'}</div>
           </div>
           <div className="info-item">
             <div className="info-label">Genere</div>
-            <select
-              value={gender}
-              onChange={(e) => { setGender(e.target.value); handleSave(); }}
-              className="info-select"
-            >
-              <option value="">Seleziona</option>
-              <option value="M">M</option>
-              <option value="F">F</option>
-            </select>
+            <div className="info-value">{gender === 'M' ? 'M' : gender === 'F' ? 'F' : '—'}</div>
           </div>
         </div>
       </div>
@@ -484,10 +573,10 @@ function App() {
             <input
               type="checkbox"
               checked={showUsernameOnLeaderboard}
-              onChange={(e) => { 
+              onChange={(e) => {
                 const newVal = e.target.checked;
                 setShowUsernameOnLeaderboard(newVal); 
-                handleSave(newVal); 
+                handleSave({ showUsernameOnLeaderboard: newVal }); 
               }}
             />
             <span className="toggle-slider"></span>
@@ -500,6 +589,10 @@ function App() {
       </div>
       <div className="profile-section">
         <h3>Cambia Username</h3>
+        <div className="info-item current-username-box">
+          <div className="info-label">Username attuale</div>
+          <div className="info-value">{username || '—'}</div>
+        </div>
         <input
           type="text"
           value={newUsername}
@@ -569,13 +662,24 @@ function App() {
     return (
       <>
         <div className="personal-info-section">
+          <div className="profile-photo-section">
+            <div className="profile-photo-wrapper">
+              {profilePhoto ? (
+                <img src={profilePhoto} alt="Profile" className="profile-photo-img" />
+              ) : (
+                <div className="profile-photo-placeholder">
+                  <User size={48} />
+                </div>
+              )}
+            </div>
+          </div>
           <div className="personal-info-grid">
             <div className="info-item">
               <div className="info-label">Peso corporeo</div>
               <input
                 type="number"
                 value={bw}
-                onChange={(e) => { setBw(e.target.value); handleSave(); }}
+                onChange={(e) => { setBw(e.target.value); handleSave({ bw: e.target.value }); }}
                 className="info-input"
                 placeholder="kg"
               />
@@ -584,7 +688,7 @@ function App() {
               <div className="info-label">Genere</div>
               <select
                 value={gender}
-                onChange={(e) => { setGender(e.target.value); handleSave(); }}
+                onChange={(e) => { setGender(e.target.value); handleSave({ gender: e.target.value }); }}
                 className="info-select"
               >
                 <option value="">Seleziona</option>
@@ -627,7 +731,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...prDates];
                           next[ex.index] = e.target.value;
-                          setPrDates(next); handleSave();
+                          setPrDates(next); handleSave({ prDates: next });
                         }}
                         className="pr-input"
                       />
@@ -652,7 +756,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...prNotes];
                           next[ex.index] = e.target.value;
-                          setPrNotes(next); handleSave();
+                          setPrNotes(next); handleSave({ prNotes: next });
                         }}
                         className="pr-textarea"
                         placeholder="Aggiungi note..."
@@ -697,7 +801,7 @@ function App() {
                       e.stopPropagation();
                       const next = [...otherPRActive];
                       next[idx] = e.target.checked;
-                      setOtherPRActive(next); handleSave();
+                      setOtherPRActive(next); handleSave({ otherPRActive: next });
                     }}
                   />
                   <span className="toggle-slider"></span>
@@ -716,7 +820,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...otherPRValues];
                           next[idx] = e.target.value;
-                          setOtherPRValues(next); handleSave();
+                          setOtherPRValues(next); handleSave({ otherPRValues: next });
                         }}
                         className="pr-input"
                       />
@@ -729,7 +833,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...otherPRDates];
                           next[idx] = e.target.value;
-                          setOtherPRDates(next); handleSave();
+                          setOtherPRDates(next); handleSave({ otherPRDates: next });
                         }}
                         className="pr-input"
                       />
@@ -744,7 +848,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...otherPRGoalValues];
                           next[idx] = e.target.value;
-                          setOtherPRGoalValues(next); handleSave();
+                          setOtherPRGoalValues(next); handleSave({ otherPRGoalValues: next });
                         }}
                         className="pr-input"
                       />
@@ -758,7 +862,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...otherPRNotes];
                           next[idx] = e.target.value;
-                          setOtherPRNotes(next); handleSave();
+                          setOtherPRNotes(next); handleSave({ otherPRNotes: next });
                         }}
                         className="pr-textarea"
                         placeholder="Aggiungi note..."
@@ -803,7 +907,11 @@ function App() {
 
   const renderHomePage = () => (
     <div className="home-page">
-      <h2>Benvenuto, {username}!</h2>
+      <div className="home-header">
+        <h1 className="home-title">Kuma Powerlifting</h1>
+        <p className="home-subtitle">powered by Marco Moscheo</p>
+      </div>
+      <h2 className="home-welcome">Benvenuto, {username}!</h2>
       <div className="home-grid">
         <button className="home-card" onClick={() => setCurrentPage('Me')}>
           <User size={48} />
@@ -827,7 +935,7 @@ function App() {
         <input
           type="text"
           value={nextWorkout}
-          onChange={(e) => { setNextWorkout(e.target.value); handleSave(); }}
+          onChange={(e) => { setNextWorkout(e.target.value); handleSave({ nextWorkout: e.target.value }); }}
           className="next-workout-input"
           placeholder="Scrivi qui il tuo prossimo allenamento..."
         />
@@ -862,6 +970,21 @@ function App() {
           <button onClick={() => setCurrentPage('Profile')}>
             <Settings size={24} />
           </button>
+        </div>
+      )}
+      {showFirstLoginModal && (
+        <div className="first-login-modal-overlay">
+          <div className="first-login-modal">
+            <div className="first-login-icon">
+              <Dumbbell size={48} />
+            </div>
+            <h2>Benvenuto in Kuma Powerlifting!</h2>
+            <p>Prima di iniziare, inserisci i tuoi massimali attuali (Squat, Bench Press, Deadlift) nella sezione <strong>Personal Record</strong>.</p>
+            <p>Questo è necessario per calcolare il tuo totale e posizionarti in classifica.</p>
+            <button className="first-login-btn" onClick={() => { setShowFirstLoginModal(false); setCurrentPage('Me'); }}>
+              Vai a Personal Record
+            </button>
+          </div>
         </div>
       )}
     </div>
