@@ -739,3 +739,32 @@ body {
   padding: 0 15px 15px 15px;
   border-top: 1px solid #333;
 }
+
+.next-workout-section {
+  width: 100%;
+  max-width: 500px;
+  margin: 30px auto 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.next-workout-label {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ff4136;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.next-workout-input {
+  width: 100%;
+  padding: 12px;
+  background-color: #333;
+  color: #fff;
+  border: 1px solid #ff4136;
+  border-radius: 8px;
+  font-size: 16px;
+  box-sizing: border-box;
+  text-align: center;
+}

@@ -48,6 +48,7 @@ function App() {
   const [otherPRNotes, setOtherPRNotes] = useState(['', '', '']);
   const [previousOtherPRValues, setPreviousOtherPRValues] = useState(['', '', '']);
   const [otherPRGoalValues, setOtherPRGoalValues] = useState(['', '', '']);
+  const [nextWorkout, setNextWorkout] = useState('');
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
@@ -109,7 +110,8 @@ function App() {
         otherPRNotes: ['', '', ''],
         previousBottomNumbers: ['', '', ''],
         previousOtherPRValues: ['', '', ''],
-        otherPRGoalValues: ['', '', '']
+        otherPRGoalValues: ['', '', ''],
+        nextWorkout: ''
       });
       loadUserData(lowercaseUsername);
       setCurrentPage('Me');
@@ -146,6 +148,7 @@ function App() {
       setPreviousBottomNumbers(userData.previousBottomNumbers || ['', '', '']);
       setPreviousOtherPRValues(userData.previousOtherPRValues || ['', '', '']);
       setOtherPRGoalValues(userData.otherPRGoalValues || ['', '', '']);
+      setNextWorkout(userData.nextWorkout || '');
     }
   };
 
@@ -195,7 +198,8 @@ function App() {
       otherPRNotes: otherPRNotes,
       previousBottomNumbers: [...bottomNumbers],
       previousOtherPRValues: [...otherPRValues],
-      otherPRGoalValues: [...otherPRGoalValues]
+      otherPRGoalValues: [...otherPRGoalValues],
+      nextWorkout: nextWorkout || null
     });
   };
 
@@ -626,10 +630,20 @@ function App() {
           <Layout size={48} />
           <span>Programmazioni</span>
         </button>
-        <button className="home-card" onClick={() => setCurrentPage('Profile')}>
-          <Settings size={48} />
-          <span>Profilo</span>
-        </button>
+      <button className="home-card" onClick={() => setCurrentPage('Profile')}>
+        <Settings size={48} />
+        <span>Profilo</span>
+      </button>
+      </div>
+      <div className="next-workout-section">
+        <div className="next-workout-label">Il tuo prossimo allenamento è</div>
+        <input
+          type="text"
+          value={nextWorkout}
+          onChange={(e) => { setNextWorkout(e.target.value); handleSave(); }}
+          className="next-workout-input"
+          placeholder="Scrivi qui il tuo prossimo allenamento..."
+        />
       </div>
     </div>
   );
