@@ -287,14 +287,10 @@ body {
 }
 
 .pr-card-icon-img {
-  width: 44px;
-  height: 44px;
+  width: 28px;
+  height: 28px;
   object-fit: contain;
-  padding: 8px;
-  background: rgba(255, 65, 54, 0.2);
-  border: 2px solid #ff4136;
-  border-radius: 10px;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+  mix-blend-mode: screen;
 }
 
 .pr-card-label {

@@ -398,16 +398,16 @@ function App() {
 
   const renderMePage = () => {
     const exercises = [
-      { key: 's', label: 'Squat', icon: <img src="/squat.png" alt="Squat" className="pr-card-icon-img" />, index: 0 },
-      { key: 'b', label: 'Bench', icon: <img src="/bench-press.png" alt="Bench" className="pr-card-icon-img" />, index: 1 },
-      { key: 'd', label: 'Deadlift', icon: <img src="/deadlift.jpg" alt="Deadlift" className="pr-card-icon-img" />, index: 2 },
+      { key: 's', label: 'Squat', icon: <img src="/squat.png" alt="Squat" className="img-no-black-bg pr-card-icon-img" />, index: 0 },
+      { key: 'b', label: 'Bench', icon: <img src="/bench-press.png" alt="Bench" className="img-no-black-bg pr-card-icon-img" />, index: 1 },
+      { key: 'd', label: 'Deadlift', icon: <img src="/deadlift.jpg" alt="Deadlift" className="img-no-black-bg pr-card-icon-img" />, index: 2 },
     ];
 
     const otherExercises = [
-      { key: 'dips', label: 'Dips', icon: <img src="/dips.jpg" alt="Dips" className="pr-card-icon-img" /> },
-      { key: 'chinup', label: 'Chin Up', icon: <img src="/chinup.png" alt="Chin Up" className="pr-card-icon-img" /> },
-      { key: 'military', label: 'Military Press', icon: <img src="/military-press.jpg" alt="Military Press" className="pr-card-icon-img" /> },
-      { key: 'trazioni', label: 'Trazioni', icon: <img src="/trazioni.png" alt="Trazioni" className="pr-card-icon-img" /> },
+      { key: 'dips', label: 'Dips', icon: <img src="/dips.jpg" alt="Dips" className="img-no-black-bg pr-card-icon-img" /> },
+      { key: 'chinup', label: 'Chin Up', icon: <img src="/chinup.png" alt="Chin Up" className="img-no-black-bg pr-card-icon-img" /> },
+      { key: 'military', label: 'Military Press', icon: <img src="/military-press.jpg" alt="Military Press" className="img-no-black-bg pr-card-icon-img" /> },
+      { key: 'trazioni', label: 'Trazioni', icon: <img src="/trazioni.png" alt="Trazioni" className="img-no-black-bg pr-card-icon-img" /> },
     ];
 
     const getPrPercentage = (index, isOther = false) => {
