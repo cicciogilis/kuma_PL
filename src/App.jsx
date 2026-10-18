@@ -96,7 +96,7 @@ function App() {
       }
     } else {
       if (isRegistering) {
-        if (!firstName || !lastName || !birthDate) {
+        if (!firstName || !lastName || !birthDate || !gender) {
           alert('Compila tutti i campi');
           return;
         }
@@ -125,6 +125,7 @@ function App() {
           firstName: firstName || '',
           lastName: lastName || '',
           birthDate: birthDate || '',
+          gender: gender || '',
           showUsernameOnLeaderboard: false
         });
         loadUserData(lowercaseUsername);
@@ -351,6 +352,15 @@ function App() {
               onChange={(e) => setBirthDate(e.target.value)}
               placeholder="Data di Nascita"
             />
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              placeholder="Genere"
+            >
+              <option value="">Seleziona genere</option>
+              <option value="M">M</option>
+              <option value="F">F</option>
+            </select>
           </>
         )}
         <button type="submit" className="login-button">{isRegistering ? 'Registrati' : 'Accedi'}</button>
