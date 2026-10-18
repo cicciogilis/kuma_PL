@@ -202,6 +202,14 @@ function App() {
   }, [topNumbers, bottomNumbers]);
 
     const handleSave = async (showUsernameOverride) => {
+    if (birthCity && !birthProvince) {
+      alert('Inserisci anche la provincia di nascita');
+      return;
+    }
+    if (birthProvince && !birthCity) {
+      alert('Inserisci anche la città di nascita');
+      return;
+    }
     const userRef = ref(db, `users/${username.toLowerCase().replace(/\s/g, '')}`);
     setPreviousBottomNumbers([...bottomNumbers]);
     setPreviousOtherPRValues([...otherPRValues]);
@@ -418,6 +426,23 @@ function App() {
         </div>
       </div>
       <div className="profile-section">
+        <h3>Visualizzazione Leader Board</h3>
+        <label className="toggle-switch" style={{ marginTop: '8px', display: 'inline-flex' }}>
+          <input
+            type="checkbox"
+            checked={showUsernameOnLeaderboard}
+            onChange={(e) => { 
+              const newVal = e.target.checked;
+              setShowUsernameOnLeaderboard(newVal); 
+              handleSave(newVal); 
+            }}
+          />
+          <span className="toggle-slider"></span>
+        </label>
+        <span style={{ fontSize: '14px', color: '#ccc', marginLeft: '8px' }}>Mostra username su Leader Board</span>
+        <p style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>Se disattivato, verrà mostrato Nome Cognome</p>
+      </div>
+      <div className="profile-section">
         <h3>Cambia Username</h3>
         <input
           type="text"
@@ -489,58 +514,6 @@ function App() {
       <>
         <div className="personal-info-section">
           <div className="personal-info-grid">
-            <div className="info-item">
-              <div className="info-label">Nome</div>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => { setFirstName(e.target.value); handleSave(); }}
-                className="info-input"
-                placeholder="Nome"
-              />
-            </div>
-            <div className="info-item">
-              <div className="info-label">Cognome</div>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => { setLastName(e.target.value); handleSave(); }}
-                className="info-input"
-                placeholder="Cognome"
-              />
-            </div>
-            <div className="info-item">
-              <div className="info-label">Data di Nascita</div>
-              <input
-                type="date"
-                value={birthDate}
-                onChange={(e) => { setBirthDate(e.target.value); handleSave(); }}
-                className="info-input"
-              />
-            </div>
-            <div className="info-item">
-              <div className="info-label">Username</div>
-              <input
-                type="text"
-                value={username}
-                onChange={(e) => { setUsername(e.target.value); handleSave(); }}
-                className="info-input"
-                placeholder="Username"
-              />
-              <label className="toggle-switch" style={{ marginTop: '8px', display: 'inline-flex' }}>
-                <input
-                  type="checkbox"
-                  checked={showUsernameOnLeaderboard}
-                  onChange={(e) => { 
-                    const newVal = e.target.checked;
-                    setShowUsernameOnLeaderboard(newVal); 
-                    handleSave(newVal); 
-                  }}
-                />
-                <span className="toggle-slider"></span>
-              </label>
-              <span style={{ fontSize: '12px', color: '#ccc', marginLeft: '6px' }}>Mostra username su Leader Board</span>
-            </div>
             <div className="info-item">
               <div className="info-label">Peso corporeo</div>
               <input
