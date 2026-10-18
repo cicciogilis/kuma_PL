@@ -790,6 +790,23 @@ body {
   color: #fff;
 }
 
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.toggle-row .toggle-text {
+  max-width: 220px;
+}
+
+.toggle-row .toggle-text span {
+  display: block;
+  margin-bottom: 2px;
+}
+
 .inline-toggle {
   align-items: center;
   gap: 10px;

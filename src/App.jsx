@@ -391,6 +391,7 @@ function App() {
             <select
               value={gender}
               onChange={(e) => setGender(e.target.value)}
+              className="info-select"
               placeholder="Genere"
             >
               <option value="">Seleziona genere</option>
@@ -478,20 +479,24 @@ function App() {
       </div>
       <div className="profile-section">
         <h3>Visualizzazione Leader Board</h3>
-        <label className="toggle-switch inline-toggle" style={{ marginTop: '8px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-          <input
-            type="checkbox"
-            checked={showUsernameOnLeaderboard}
-            onChange={(e) => { 
-              const newVal = e.target.checked;
-              setShowUsernameOnLeaderboard(newVal); 
-              handleSave(newVal); 
-            }}
-          />
-          <span className="toggle-slider"></span>
-          <span style={{ fontSize: '14px', color: '#ccc', marginLeft: '0' }}>Mostra username su Leader Board</span>
-          <p style={{ fontSize: '12px', color: '#888', marginLeft: '6px' }}>Se disattivato, verrà mostrato Nome Cognome</p>
-        </label>
+        <div className="toggle-row">
+          <label className="toggle-switch inline-toggle" style={{ marginTop: '0', display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+            <input
+              type="checkbox"
+              checked={showUsernameOnLeaderboard}
+              onChange={(e) => { 
+                const newVal = e.target.checked;
+                setShowUsernameOnLeaderboard(newVal); 
+                handleSave(newVal); 
+              }}
+            />
+            <span className="toggle-slider"></span>
+          </label>
+<div className="toggle-text" style={{ maxWidth: '260px', minWidth: '200px' }}>
+            <span style={{ fontSize: '14px', color: '#ccc', whiteSpace: 'nowrap' }}>Mostra username su Leader Board</span>
+            <p style={{ fontSize: '12px', color: '#888', marginTop: '4px', marginBottom: '0', whiteSpace: 'nowrap' }}>Se disattivato, verranno mostrati Nome e Cognome</p>
+          </div>
+        </div>
       </div>
       <div className="profile-section">
         <h3>Cambia Username</h3>
