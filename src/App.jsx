@@ -42,6 +42,7 @@ function App() {
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [showUsernameOnLeaderboard, setShowUsernameOnLeaderboard] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [expandedCard, setExpandedCard] = useState(null);
   const [prDates, setPrDates] = useState(['', '', '']);
   const [prNotes, setPrNotes] = useState(['', '', '']);
@@ -94,37 +95,45 @@ function App() {
         alert('Password errata');
       }
     } else {
-      const saltRounds = 10;
-      const hashedPassword = await bcrypt.hash(loginPassword, saltRounds);
-      await set(userRef, {
-        username: loginUsername,
-        password: hashedPassword,
-        s: 0,
-        b: 0,
-        d: 0,
-        sObj: 0,
-        bObj: 0,
-        dObj: 0,
-        bw: '',
-        prDate: ['', '', ''],
-        prNotes: ['', '', ''],
-        otherPR: ['', '', '', ''],
-        otherPRActive: [false, false, false, false],
-        otherPRDate: ['', '', '', ''],
-        otherPRNotes: ['', '', '', ''],
-        previousBottomNumbers: ['', '', ''],
-        previousOtherPRValues: ['', '', '', ''],
-        otherPRGoalValues: ['', '', '', ''],
-        nextWorkout: '',
-        firstName: '',
-        lastName: '',
-        birthDate: '',
-        showUsernameOnLeaderboard: false
-      });
-      loadUserData(lowercaseUsername);
-      setCurrentPage('Me');
-      localStorage.setItem('username', loginUsername);
-      localStorage.setItem('password', loginPassword);
+      if (isRegistering) {
+        if (!firstName || !lastName || !birthDate) {
+          alert('Compila tutti i campi');
+          return;
+        }
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(loginPassword, saltRounds);
+        await set(userRef, {
+          username: loginUsername,
+          password: hashedPassword,
+          s: 0,
+          b: 0,
+          d: 0,
+          sObj: 0,
+          bObj: 0,
+          dObj: 0,
+          bw: '',
+          prDate: ['', '', '', ''],
+          prNotes: ['', '', '', ''],
+          otherPR: ['', '', '', ''],
+          otherPRActive: [false, false, false, false],
+          otherPRDate: ['', '', '', ''],
+          otherPRNotes: ['', '', '', ''],
+          previousBottomNumbers: ['', '', ''],
+          previousOtherPRValues: ['', '', '', ''],
+          otherPRGoalValues: ['', '', '', ''],
+          nextWorkout: '',
+          firstName: firstName || '',
+          lastName: lastName || '',
+          birthDate: birthDate || '',
+          showUsernameOnLeaderboard: false
+        });
+        loadUserData(lowercaseUsername);
+        setCurrentPage('Me');
+        localStorage.setItem('username', loginUsername);
+        localStorage.setItem('password', loginPassword);
+      } else {
+        alert('Utente non registrato. Clicca su "Registrati" per creare un nuovo account.');
+      }
     }
   };
 
@@ -308,7 +317,7 @@ function App() {
   const renderLoginPage = () => (
     <div className="login-page">
       <img src="/logo512.png" alt="Kuma Logo" className="login-logo" />
-      <h2>Login / Registrazione</h2>
+      <h2>{isRegistering ? 'Registrazione' : 'Login'}</h2>
       <form onSubmit={handleLogin}>
         <input
           type="text"
@@ -322,25 +331,32 @@ function App() {
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Password"
         />
-        <input
-          type="text"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          placeholder="Nome"
-        />
-        <input
-          type="text"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-          placeholder="Cognome"
-        />
-        <input
-          type="date"
-          value={birthDate}
-          onChange={(e) => setBirthDate(e.target.value)}
-          placeholder="Data di Nascita"
-        />
-        <button type="submit" className="login-button">Login / Registrati</button>
+        {isRegistering && (
+          <>
+            <input
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder="Nome"
+            />
+            <input
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder="Cognome"
+            />
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              placeholder="Data di Nascita"
+            />
+          </>
+        )}
+        <button type="submit" className="login-button">{isRegistering ? 'Registrati' : 'Accedi'}</button>
+        <button type="button" onClick={() => setIsRegistering(!isRegistering)} className="toggle-register">
+          {isRegistering ? 'Hai già un account? Accedi' : 'Nuovo utente? Registrati'}
+        </button>
       </form>
     </div>
   );
