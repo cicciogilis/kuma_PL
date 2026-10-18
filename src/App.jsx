@@ -162,6 +162,7 @@ function App() {
     } else {
       setBottomNumbers(newNumbers);
     }
+    handleSave();
   };
 
   useEffect(() => {
@@ -196,7 +197,6 @@ function App() {
       previousOtherPRValues: [...otherPRValues],
       otherPRGoalValues: [...otherPRGoalValues]
     });
-    alert('Dati salvati con successo');
   };
 
   const loadLeaderboard = async () => {
@@ -384,7 +384,7 @@ function App() {
               <input
                 type="number"
                 value={bw}
-                onChange={(e) => setBw(e.target.value)}
+                onChange={(e) => { setBw(e.target.value); handleSave(); }}
                 className="info-input"
                 placeholder="kg"
               />
@@ -393,7 +393,7 @@ function App() {
               <div className="info-label">Genere</div>
               <select
                 value={gender}
-                onChange={(e) => setGender(e.target.value)}
+                onChange={(e) => { setGender(e.target.value); handleSave(); }}
                 className="info-select"
               >
                 <option value="">Seleziona</option>
@@ -436,7 +436,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...prDates];
                           next[ex.index] = e.target.value;
-                          setPrDates(next);
+                          setPrDates(next); handleSave();
                         }}
                         className="pr-input"
                       />
@@ -461,7 +461,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...prNotes];
                           next[ex.index] = e.target.value;
-                          setPrNotes(next);
+                          setPrNotes(next); handleSave();
                         }}
                         className="pr-textarea"
                         placeholder="Aggiungi note..."
@@ -506,7 +506,7 @@ function App() {
                       e.stopPropagation();
                       const next = [...otherPRActive];
                       next[idx] = e.target.checked;
-                      setOtherPRActive(next);
+                      setOtherPRActive(next); handleSave();
                     }}
                   />
                   <span className="toggle-slider"></span>
@@ -525,7 +525,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...otherPRValues];
                           next[idx] = e.target.value;
-                          setOtherPRValues(next);
+                          setOtherPRValues(next); handleSave();
                         }}
                         className="pr-input"
                       />
@@ -538,7 +538,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...otherPRDates];
                           next[idx] = e.target.value;
-                          setOtherPRDates(next);
+                          setOtherPRDates(next); handleSave();
                         }}
                         className="pr-input"
                       />
@@ -553,7 +553,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...otherPRGoalValues];
                           next[idx] = e.target.value;
-                          setOtherPRGoalValues(next);
+                          setOtherPRGoalValues(next); handleSave();
                         }}
                         className="pr-input"
                       />
@@ -567,7 +567,7 @@ function App() {
                         onChange={(e) => {
                           const next = [...otherPRNotes];
                           next[idx] = e.target.value;
-                          setOtherPRNotes(next);
+                          setOtherPRNotes(next); handleSave();
                         }}
                         className="pr-textarea"
                         placeholder="Aggiungi note..."
@@ -593,8 +593,6 @@ function App() {
             </div>
           ))}
         </div>
-
-        <button onClick={handleSave} className="save-button">Salva modifiche</button>
       </>
     );
   };
