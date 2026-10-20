@@ -20,36 +20,10 @@ const LeaderboardWithSorting = ({ data }) => {
     trazioni: { label: 'Trazioni', key: 'trazioni', field: 'otherPRValues', index: 3, activeField: 'otherPRActive', activeIndex: 3 }
   };
 
-  const MAIN_LIFTS = {
-    totalDesc: { label: 'PL Total', field: 'total' },
-    sDesc: { label: 'Squat', field: 's' },
-    bDesc: { label: 'Bench Press', field: 'b' },
-    dDesc: { label: 'Deadlift', field: 'd' },
-    ratioDesc: { label: 'Rapporto Peso/Potenza', field: 'ratio' },
-    ipfDesc: { label: 'IPF Points', field: 'ipf' }
-  };
-
   const MEN_WEIGHT_CLASSES = [53, 59, 66, 74, 83, 93, 105, 120, Infinity];
   const WOMEN_WEIGHT_CLASSES = [43, 47, 52, 57, 63, 69, 76, 84, Infinity];
 
   const isSpecialty = (sortKey) => SPECIALTY_LIFTS[sortKey] !== undefined;
-
-  const getSpecialtyValue = (item, sortKey) => {
-    const spec = SPECIALTY_LIFTS[sortKey];
-    if (!spec) return '—';
-    const active = item[spec.activeField]?.[spec.activeIndex];
-    const value = item[spec.field]?.[spec.index];
-    if (!active || !value || value === '') return '—';
-    return `${value} kg`;
-  };
-
-  const hasSpecialtyRecord = (item, sortKey) => {
-    const spec = SPECIALTY_LIFTS[sortKey];
-    if (!spec) return false;
-    const active = item[spec.activeField]?.[spec.activeIndex];
-    const value = item[spec.field]?.[spec.index];
-    return active && value && value !== '' && parseFloat(value) > 0;
-  };
 
   const getWeightClass = (bw, gender) => {
     if (!bw || !gender) return null;
@@ -89,44 +63,33 @@ const LeaderboardWithSorting = ({ data }) => {
 
   const getSortValue = (item, sortKey) => {
     if (isSpecialty(sortKey)) {
-      return getSpecialtyValue(item, sortKey);
+      const spec = SPECIALTY_LIFTS[sortKey];
+      const active = item[spec.activeField]?.[spec.activeIndex];
+      const value = item[spec.field]?.[spec.index];
+      if (!active || !hasValidValue(value)) return '—';
+      return `${safeParse(value)} kg`;
     }
     switch (sortKey) {
       case 'totalDesc':
-        return `${item.total} kg`;
+        if (!hasValidValue(item.total)) return '—';
+        return `${safeParse(item.total)} kg`;
       case 'sDesc':
-        return `${item.s} kg`;
+        if (!hasValidValue(item.s)) return '—';
+        return `${safeParse(item.s)} kg`;
       case 'bDesc':
-        return `${item.b} kg`;
+        if (!hasValidValue(item.b)) return '—';
+        return `${safeParse(item.b)} kg`;
       case 'dDesc':
-        return `${item.d} kg`;
+        if (!hasValidValue(item.d)) return '—';
+        return `${safeParse(item.d)} kg`;
       case 'ratioDesc':
-        return item.bw ? (parseFloat(item.total) / parseFloat(item.bw)).toFixed(2) : '—';
+        if (!hasValidValue(item.bw) || !hasValidValue(item.total)) return '—';
+        return `${(safeParse(item.total) / safeParse(item.bw)).toFixed(2)}`;
       case 'ipfDesc':
-        return item.bw && item.gender ? calculateIPFPoints(parseFloat(item.total), parseFloat(item.bw), item.gender).toFixed(2) : '—';
+        if (!hasValidValue(item.bw) || !hasValidValue(item.total) || !item.gender) return '—';
+        return `${calculateIPFPoints(safeParse(item.total), safeParse(item.bw), item.gender).toFixed(2)}`;
       default:
-        return `${item.total} kg`;
-    }
-  };
-
-  const getSortLabel = (sortKey) => {
-    switch (sortKey) {
-      case 'totalDesc':
-        return 'Total';
-      case 'sDesc':
-        return 'Squat';
-      case 'bDesc':
-        return 'Bench Press';
-      case 'dDesc':
-        return 'Deadlift';
-      case 'ratioDesc':
-        return 'Rapporto';
-      case 'ipfDesc':
-        return 'IPF';
-      case 'bwDesc':
-        return 'Peso';
-      default:
-        return 'Total';
+        return '—';
     }
   };
 
@@ -154,9 +117,23 @@ const calculateIPFPoints = (total, bw, gender) => {
 };
 
 const safeParse = (v) => {
+  if (v === null || v === undefined || v === '') return 0;
   const n = parseFloat(v);
   return isNaN(n) ? 0 : n;
 };
+
+const hasValidValue = (v) => {
+  const n = safeParse(v);
+  return n > 0;
+};
+
+const hasSpecialtyRecord = (item, sortKey) => {
+    const spec = SPECIALTY_LIFTS[sortKey];
+    if (!spec) return false;
+    const active = item[spec.activeField]?.[spec.activeIndex];
+    const value = item[spec.field]?.[spec.index];
+    return active === true && hasValidValue(value);
+  };
 
 const hasInvalidData = (item, sortKey) => {
     if (isSpecialty(sortKey)) {
@@ -164,17 +141,17 @@ const hasInvalidData = (item, sortKey) => {
     }
     switch (sortKey) {
       case 'sDesc':
-        return !item.s || item.s === '' || isNaN(parseFloat(item.s)) || parseFloat(item.s) <= 0;
+        return !hasValidValue(item.s);
       case 'bDesc':
-        return !item.b || item.b === '' || isNaN(parseFloat(item.b)) || parseFloat(item.b) <= 0;
+        return !hasValidValue(item.b);
       case 'dDesc':
-        return !item.d || item.d === '' || isNaN(parseFloat(item.d)) || parseFloat(item.d) <= 0;
+        return !hasValidValue(item.d);
       case 'totalDesc':
-        return !item.total || item.total === '' || isNaN(parseFloat(item.total)) || parseFloat(item.total) <= 0;
+        return !hasValidValue(item.total);
       case 'ratioDesc':
-        return !item.bw || !item.total || item.bw === '' || item.total === '' || isNaN(parseFloat(item.bw)) || isNaN(parseFloat(item.total)) || parseFloat(item.bw) <= 0 || parseFloat(item.total) <= 0;
+        return !hasValidValue(item.bw) || !hasValidValue(item.total);
       case 'ipfDesc':
-        return !item.bw || !item.gender || !item.total || item.bw === '' || item.total === '' || isNaN(parseFloat(item.bw)) || isNaN(parseFloat(item.total)) || parseFloat(item.bw) <= 0 || parseFloat(item.total) <= 0;
+        return !hasValidValue(item.bw) || !hasValidValue(item.total) || !item.gender;
       default:
         return false;
     }
@@ -267,39 +244,20 @@ const getGroupKey = (item) => {
     try {
       let filtered = [...data];
 
-      // Track users with invalid data for warning
-      const invalidUsers = [];
-
       // Specialty lifts: only absolute mode, filter by users with that lift
       if (isSpecialty(sortBy)) {
-        filtered = filtered.filter(item => {
-          const hasRecord = hasSpecialtyRecord(item, sortBy);
-          if (!hasRecord) invalidUsers.push(getDisplayName(item));
-          return hasRecord;
-        });
+        filtered = filtered.filter(item => hasSpecialtyRecord(item, sortBy));
         const sorted = filtered.sort((a, b) => {
           const spec = SPECIALTY_LIFTS[sortBy];
           const valA = safeParse(a[spec.field]?.[spec.index]);
           const valB = safeParse(b[spec.field]?.[spec.index]);
           return valB - valA;
         });
-        if (invalidUsers.length > 0) {
-          setTimeout(() => alert(`Utenti esclusi da "${SPECIALTY_LIFTS[sortBy].label}" (dati mancanti):\n${invalidUsers.join(', ')}`), 0);
-        }
         return { all: sorted };
       }
 
       // Filter out users without valid data for the selected sort
-      filtered = filtered.filter(item => {
-        const valid = !hasInvalidData(item, sortBy);
-        if (!valid) invalidUsers.push(getDisplayName(item));
-        return valid;
-      });
-
-      if (invalidUsers.length > 0) {
-        const sortLabel = MAIN_LIFTS[sortBy]?.label || sortBy;
-        setTimeout(() => alert(`Utenti esclusi da "${sortLabel}" (dati mancanti o non validi):\n${invalidUsers.join(', ')}`), 0);
-      }
+      filtered = filtered.filter(item => !hasInvalidData(item, sortBy));
 
       // Absolute mode: no grouping
       if (filters.absolute) {
@@ -357,6 +315,13 @@ const getGroupKey = (item) => {
 
   const toggleRow = (username) => {
     setExpandedRows(prev => ({ ...prev, [username]: !prev[username] }));
+  };
+
+  const handleCardKeyDown = (event, username) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleRow(username);
+    }
   };
 
   const getDisplayName = (item) => {
@@ -523,6 +488,11 @@ const getGroupKey = (item) => {
                       key={item.username}
                       className={`leaderboard-card ${expandedRows[item.username] ? 'expanded' : ''}`}
                       onClick={() => toggleRow(item.username)}
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={Boolean(expandedRows[item.username])}
+                      aria-label={`${getDisplayName(item)}: ${getSortValue(item, sortBy)}`}
+                      onKeyDown={(event) => handleCardKeyDown(event, item.username)}
                     >
                       <div className="leaderboard-card-header">
                         <div className={`leaderboard-position ${index === 0 ? 'position-gold' : index === 1 ? 'position-silver' : index === 2 ? 'position-bronze' : ''}`}>{index + 1}</div>
@@ -544,48 +514,50 @@ const getGroupKey = (item) => {
                       {expandedRows[item.username] && (
                         <div className="leaderboard-card-content">
                           <div className="leaderboard-stats-grid">
-                            {item.s && item.s !== '' && !isNaN(parseFloat(item.s)) && (
+                            {hasValidValue(item.s) && (
                               <div className="leaderboard-stat">
                                 <span className="leaderboard-stat-label">Squat</span>
-                                <span className="leaderboard-stat-value">{item.s} kg</span>
+                                <span className="leaderboard-stat-value">{safeParse(item.s)} kg</span>
                               </div>
                             )}
-                            {item.b && item.b !== '' && !isNaN(parseFloat(item.b)) && (
+                            {hasValidValue(item.b) && (
                               <div className="leaderboard-stat">
                                 <span className="leaderboard-stat-label">Bench Press</span>
-                                <span className="leaderboard-stat-value">{item.b} kg</span>
+                                <span className="leaderboard-stat-value">{safeParse(item.b)} kg</span>
                               </div>
                             )}
-                            {item.d && item.d !== '' && !isNaN(parseFloat(item.d)) && (
+                            {hasValidValue(item.d) && (
                               <div className="leaderboard-stat">
                                 <span className="leaderboard-stat-label">Deadlift</span>
-                                <span className="leaderboard-stat-value">{item.d} kg</span>
+                                <span className="leaderboard-stat-value">{safeParse(item.d)} kg</span>
                               </div>
                             )}
                             {isSpecialty(sortBy) && (() => {
                               const spec = SPECIALTY_LIFTS[sortBy];
-                              const active = item[spec.activeField]?.[spec.activeIndex];
-                              const value = item[spec.field]?.[spec.index];
-                              return active && value && value !== '' ? (
-                                <div className="leaderboard-stat">
-                                  <span className="leaderboard-stat-label">{spec.label}</span>
-                                  <span className="leaderboard-stat-value">{value} kg</span>
-                                </div>
-                              ) : null;
+                              if (hasSpecialtyRecord(item, sortBy)) {
+                                const value = item[spec.field]?.[spec.index];
+                                return (
+                                  <div className="leaderboard-stat">
+                                    <span className="leaderboard-stat-label">{spec.label}</span>
+                                    <span className="leaderboard-stat-value">{safeParse(value)} kg</span>
+                                  </div>
+                                );
+                              }
+                              return null;
                             })()}
-                            {item.bw && item.bw !== '' && !isNaN(parseFloat(item.bw)) && (
+                            {hasValidValue(item.bw) && (
                               <div className="leaderboard-stat">
                                 <span className="leaderboard-stat-label">Peso Corporeo</span>
-                                <span className="leaderboard-stat-value">{item.bw} kg</span>
+                                <span className="leaderboard-stat-value">{safeParse(item.bw)} kg</span>
                               </div>
                             )}
-                            {item.total && item.total !== '' && item.bw && item.bw !== '' && !isNaN(parseFloat(item.total)) && !isNaN(parseFloat(item.bw)) && parseFloat(item.bw) > 0 && (
+                            {hasValidValue(item.bw) && hasValidValue(item.total) && (
                               <div className="leaderboard-stat">
                                 <span className="leaderboard-stat-label">Totale/BW</span>
                                 <span className="leaderboard-stat-value">{(safeParse(item.total) / safeParse(item.bw)).toFixed(2)}</span>
                               </div>
                             )}
-                            {item.bw && item.bw !== '' && item.gender && item.total && item.total !== '' && !isNaN(parseFloat(item.bw)) && !isNaN(parseFloat(item.total)) && parseFloat(item.bw) > 0 && (
+                            {hasValidValue(item.bw) && hasValidValue(item.total) && item.gender && (
                               <div className="leaderboard-stat">
                                 <span className="leaderboard-stat-label">IPF Points</span>
                                 <span className="leaderboard-stat-value">{calculateIPFPoints(safeParse(item.total), safeParse(item.bw), item.gender).toFixed(2)}</span>

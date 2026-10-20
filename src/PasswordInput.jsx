@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 
 const PasswordInput = ({ value, onChange, placeholder }) => {
@@ -12,6 +12,7 @@ const PasswordInput = ({ value, onChange, placeholder }) => {
         onChange={onChange}
         placeholder={placeholder}
         className="password-input"
+        aria-label={placeholder || 'Password'}
       />
       <button
         type="button"

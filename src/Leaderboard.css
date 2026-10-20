@@ -42,7 +42,6 @@
 }
 
 .leaderboard-subtitle {
-  font-family: 'Norwill', sans-serif;
   font-size: 13px;
   color: #888;
   margin: 0 0 20px 0;
@@ -414,4 +413,22 @@
 
 .leaderboard-content::-webkit-scrollbar-thumb:hover {
   background: #444;
+}
+
+.leaderboard-card:focus-visible {
+  outline: 2px solid #ff4136;
+  outline-offset: 2px;
+}
+
+.leaderboard-error {
+  max-width: 500px;
+  margin: 0 auto 12px auto;
+  background-color: rgba(255, 65, 54, 0.15);
+  border: 1px solid #ff4136;
+  color: #ff8a80;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  text-align: center;
+  box-sizing: border-box;
 }

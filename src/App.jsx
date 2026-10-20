@@ -1,11 +1,23 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, get, update, query, orderByChild } from 'firebase/database';
+import { getDatabase, ref, set, get, update, onValue } from 'firebase/database';
 import './App.css';
 import bcrypt from 'bcryptjs';
 import PasswordInput from './PasswordInput';
-import { User, Trophy, Settings, Home, Layout, Dumbbell, Target, Activity, ChevronDown, ChevronUp, Edit, Camera } from 'lucide-react';
+import { User, Trophy, Settings, Home, Layout, Dumbbell, ChevronDown, ChevronUp, Camera, Check } from 'lucide-react';
 import LeaderboardWithSorting from './LeaderboardWithSorting';
+import Programmazioni from './Programmazioni';
+import ProgramDay from './ProgramDay';
+import ProgramEndingWarning from './ProgramEndingWarning';
+import {
+  getNextWorkout,
+  isProgramEndingSoon,
+  loadCompletions,
+  loadPrograms,
+  persistCompletions,
+  selectActiveProgram,
+  workoutKey,
+} from './utils/programData';
 
 // Configurazione Firebase
 const firebaseConfig = {
@@ -23,14 +35,72 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
+// Lo username diventa una chiave Firebase: va normalizzato in un unico punto
+const normalizeUsername = (value = '') => value.toLowerCase().replace(/\s/g, '');
+
+const USERNAME_PATTERN = /^[a-zA-Z0-9À-ÖØ-öø-ÿ _-]+$/;
+
+const validateUsername = (value) => {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Inserisci un username';
+  if (!USERNAME_PATTERN.test(trimmed)) {
+    return "L'username può contenere solo lettere, numeri, spazi, '_' e '-'";
+  }
+  if (normalizeUsername(trimmed).length < 3) {
+    return "L'username deve contenere almeno 3 caratteri";
+  }
+  return null;
+};
+
+// Firebase restituisce gli array come oggetti in alcuni casi: normalizza sempre la forma
+const toArray = (value, length, fallback = '') => {
+  const source = Array.isArray(value)
+    ? value
+    : value && typeof value === 'object'
+      ? Object.values(value)
+      : [];
+  return Array.from({ length }, (_, index) => source[index] ?? fallback);
+};
+
+const buildLeaderboardData = (snapshot) => {
+  const users = [];
+  snapshot.forEach((childSnapshot) => {
+    const userData = childSnapshot.val() || {};
+
+    const s = userData.s != null ? parseFloat(userData.s) : 0;
+    const b = userData.b != null ? parseFloat(userData.b) : 0;
+    const d = userData.d != null ? parseFloat(userData.d) : 0;
+    const bw = userData.bw != null ? parseFloat(userData.bw) : 0;
+
+    // In classifica solo chi ha almeno una alzata principale valida
+    if (!(s > 0) && !(b > 0) && !(d > 0)) return;
+
+    users.push({
+      username: userData.username || '',
+      firstName: userData.firstName || '',
+      lastName: userData.lastName || '',
+      showUsernameOnLeaderboard: userData.showUsernameOnLeaderboard || false,
+      profilePhoto: userData.profilePhoto || '',
+      s: s > 0 ? String(s) : '',
+      b: b > 0 ? String(b) : '',
+      d: d > 0 ? String(d) : '',
+      bw: bw > 0 ? String(bw) : '',
+      gender: userData.gender || '',
+      birthDate: userData.birthDate || '',
+      otherPRValues: toArray(userData.otherPR, 4),
+      otherPRActive: toArray(userData.otherPRActive, 4, false).map(Boolean),
+      total: (s + b + d) > 0 ? String(s + b + d) : '',
+    });
+  });
+  return users;
+};
+
 function App() {
   const [currentPage, setCurrentPage] = useState('Login');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [topNumbers, setTopNumbers] = useState(['', '', '', '']);
   const [bottomNumbers, setBottomNumbers] = useState(['', '', '', '']);
-  const [percentages, setPercentages] = useState(['', '', '', '']);
-  const [leaderboard, setLeaderboard] = useState([]);
   const [newUsername, setNewUsername] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -48,18 +118,20 @@ function App() {
   const [expandedCard, setExpandedCard] = useState(null);
   const [prDates, setPrDates] = useState(['', '', '']);
   const [prNotes, setPrNotes] = useState(['', '', '']);
-  const [previousBottomNumbers, setPreviousBottomNumbers] = useState(['', '', '']);
   const [otherPRValues, setOtherPRValues] = useState(['', '', '', '']);
   const [otherPRActive, setOtherPRActive] = useState([false, false, false, false]);
   const [otherPRDates, setOtherPRDates] = useState(['', '', '', '']);
   const [otherPRNotes, setOtherPRNotes] = useState(['', '', '', '']);
-  const [previousOtherPRValues, setPreviousOtherPRValues] = useState(['', '', '', '']);
   const [otherPRGoalValues, setOtherPRGoalValues] = useState(['', '', '', '']);
   const [nextWorkout, setNextWorkout] = useState('');
+  const [homePrograms, setHomePrograms] = useState([]);
+  const [homeCompletions, setHomeCompletions] = useState({});
   const [showSplash, setShowSplash] = useState(true);
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState('');
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [saveError, setSaveError] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -80,92 +152,132 @@ function App() {
     }
   }, [showSplash]);
 
+  useEffect(() => {
+    if (currentPage !== 'Home' || !username) return;
+
+    const normalizedUsername = normalizeUsername(username);
+    setHomePrograms(loadPrograms(normalizedUsername));
+    setHomeCompletions(loadCompletions(normalizedUsername));
+  }, [currentPage, username]);
+
   const handleLogin = async (e, savedUsername = null, savedPassword = null) => {
     if (e) e.preventDefault();
     const loginUsername = savedUsername || username;
     const loginPassword = savedPassword || password;
-    const lowercaseUsername = loginUsername.toLowerCase().replace(/\s/g, '');
-    const userRef = ref(db, `users/${lowercaseUsername}`);
-    const snapshot = await get(userRef);
-    if (snapshot.exists()) {
-      const userData = snapshot.val();
-      const isPasswordCorrect = await bcrypt.compare(loginPassword, userData.password);
-      if (isPasswordCorrect) {
-        setUsername(userData.username);
-        loadUserData(lowercaseUsername);
-        if (userData.firstLogin) {
-          await update(userRef, { firstLogin: false });
-          setShowFirstLoginModal(true);
-          setCurrentPage('Me');
+    const lowercaseUsername = normalizeUsername(loginUsername);
+
+    if (!lowercaseUsername) {
+      alert('Inserisci un username valido');
+      return;
+    }
+
+    if (isRegistering) {
+      const usernameError = validateUsername(loginUsername);
+      if (usernameError) {
+        alert(usernameError);
+        return;
+      }
+    }
+
+    try {
+      const userRef = ref(db, `users/${lowercaseUsername}`);
+      const snapshot = await get(userRef);
+
+      if (snapshot.exists()) {
+        if (isRegistering) {
+          alert('Username già in uso. Scegli un altro username oppure accedi.');
+          return;
+        }
+
+        const userData = snapshot.val();
+        const isPasswordCorrect = await bcrypt.compare(loginPassword, userData.password);
+        if (isPasswordCorrect) {
+          await loadUserData(lowercaseUsername);
+          setUsername(userData.username);
+          setSaveError(false);
+          setLeaderboardError(false);
+          if (userData.firstLogin) {
+            await update(userRef, { firstLogin: false });
+            setShowFirstLoginModal(true);
+            setCurrentPage('Me');
+          } else {
+            setCurrentPage('Home');
+          }
+          localStorage.setItem('username', userData.username);
+          localStorage.setItem('password', loginPassword);
         } else {
-          setCurrentPage('Home');
+          alert('Password errata');
         }
-        localStorage.setItem('username', userData.username);
-        localStorage.setItem('password', loginPassword);
-      } else {
-        alert('Password errata');
+        return;
       }
-    } else {
-      if (isRegistering) {
-        if (!firstName || !lastName || !birthDate || !birthCity || !birthProvince || !gender) {
-          alert('Compila tutti i campi');
-          return;
-        }
-        if (birthCity && !birthProvince) {
-          alert('Inserisci anche la provincia di nascita');
-          return;
-        }
-        if (birthProvince && !birthCity) {
-          alert('Inserisci anche la città di nascita');
-          return;
-        }
-        const saltRounds = 10;
-        const hashedPassword = await bcrypt.hash(loginPassword, saltRounds);
-        await set(userRef, {
-          username: loginUsername,
-          password: hashedPassword,
-          s: 0,
-          b: 0,
-          d: 0,
-          sObj: 0,
-          bObj: 0,
-          dObj: 0,
-          bw: '',
-          prDate: ['', '', '', ''],
-          prNotes: ['', '', '', ''],
-          otherPR: ['', '', '', ''],
-          otherPRActive: [false, false, false, false],
-          otherPRDate: ['', '', '', ''],
-          otherPRNotes: ['', '', '', ''],
-          previousBottomNumbers: ['', '', ''],
-          previousOtherPRValues: ['', '', '', ''],
-          otherPRGoalValues: ['', '', '', ''],
-          nextWorkout: '',
-          firstName: firstName || '',
-          lastName: lastName || '',
-          birthDate: birthDate || '',
-          birthCity: birthCity || '',
-          birthProvince: birthProvince || '',
-          gender: gender || '',
-          showUsernameOnLeaderboard: false,
-          profilePhoto: '',
-          firstLogin: true
-        });
-        loadUserData(lowercaseUsername);
-        setShowFirstLoginModal(true);
-        setCurrentPage('Me');
-        localStorage.setItem('username', loginUsername);
-        localStorage.setItem('password', loginPassword);
-      } else {
+
+      if (!isRegistering) {
         alert('Utente non registrato. Clicca su "Registrati" per creare un nuovo account.');
+        return;
       }
+
+      if (!firstName || !lastName || !birthDate || !birthCity || !birthProvince || !gender) {
+        alert('Compila tutti i campi');
+        return;
+      }
+      if (birthCity && !birthProvince) {
+        alert('Inserisci anche la provincia di nascita');
+        return;
+      }
+      if (birthProvince && !birthCity) {
+        alert('Inserisci anche la città di nascita');
+        return;
+      }
+
+      const cleanUsername = loginUsername.trim();
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(loginPassword, saltRounds);
+      await set(userRef, {
+        username: cleanUsername,
+        password: hashedPassword,
+        s: 0,
+        b: 0,
+        d: 0,
+        sObj: 0,
+        bObj: 0,
+        dObj: 0,
+        bw: '',
+        prDate: ['', '', ''],
+        prNotes: ['', '', ''],
+        otherPR: ['', '', '', ''],
+        otherPRActive: [false, false, false, false],
+        otherPRDate: ['', '', '', ''],
+        otherPRNotes: ['', '', '', ''],
+        otherPRGoalValues: ['', '', '', ''],
+        nextWorkout: '',
+        firstName: firstName || '',
+        lastName: lastName || '',
+        birthDate: birthDate || '',
+        birthCity: birthCity || '',
+        birthProvince: birthProvince || '',
+        gender: gender || '',
+        showUsernameOnLeaderboard: false,
+        profilePhoto: '',
+        firstLogin: true
+      });
+      await loadUserData(lowercaseUsername);
+      setUsername(cleanUsername);
+      setShowFirstLoginModal(true);
+      setCurrentPage('Me');
+      localStorage.setItem('username', cleanUsername);
+      localStorage.setItem('password', loginPassword);
+    } catch (error) {
+      console.error('Errore durante il login:', error);
+      alert('Errore di connessione. Controlla la rete e riprova.');
     }
   };
 
   const loadUserData = async (lowercaseUsername) => {
-    const userRef = ref(db, `users/${lowercaseUsername}`);
-    const snapshot = await get(userRef);
-    if (snapshot.exists()) {
+    try {
+      const userRef = ref(db, `users/${lowercaseUsername}`);
+      const snapshot = await get(userRef);
+      if (!snapshot.exists()) return;
+
       const userData = snapshot.val();
       setBottomNumbers([
         userData.s || '',
@@ -181,15 +293,13 @@ function App() {
       ]);
       setBw(userData.bw || '');
       setGender(userData.gender || '');
-      setPrDates(userData.prDate || ['', '', '']);
-      setPrNotes(userData.prNotes || ['', '', '']);
-      setOtherPRValues(userData.otherPR || ['', '', '']);
-      setOtherPRActive(userData.otherPRActive || [false, false, false]);
-      setOtherPRDates(userData.otherPRDate || ['', '', '']);
-      setOtherPRNotes(userData.otherPRNotes || ['', '', '']);
-      setPreviousBottomNumbers(userData.previousBottomNumbers || ['', '', '']);
-      setPreviousOtherPRValues(userData.previousOtherPRValues || ['', '', '', '']);
-      setOtherPRGoalValues(userData.otherPRGoalValues || ['', '', '', '']);
+      setPrDates(toArray(userData.prDate, 3));
+      setPrNotes(toArray(userData.prNotes, 3));
+      setOtherPRValues(toArray(userData.otherPR, 4));
+      setOtherPRActive(toArray(userData.otherPRActive, 4, false).map(Boolean));
+      setOtherPRDates(toArray(userData.otherPRDate, 4));
+      setOtherPRNotes(toArray(userData.otherPRNotes, 4));
+      setOtherPRGoalValues(toArray(userData.otherPRGoalValues, 4));
       setNextWorkout(userData.nextWorkout || '');
       setFirstName(userData.firstName || '');
       setLastName(userData.lastName || '');
@@ -198,6 +308,9 @@ function App() {
       setBirthProvince(userData.birthProvince || '');
       setShowUsernameOnLeaderboard(userData.showUsernameOnLeaderboard || false);
       setProfilePhoto(userData.profilePhoto || '');
+    } catch (error) {
+      console.error('Errore durante il caricamento del profilo:', error);
+      alert('Impossibile caricare i dati del profilo. Controlla la connessione e riprova.');
     }
   };
 
@@ -213,6 +326,9 @@ function App() {
         const base64 = event.target.result;
         setProfilePhoto(base64);
         handleSave({ profilePhoto: base64 });
+      };
+      reader.onerror = () => {
+        alert("Impossibile leggere l'immagine selezionata.");
       };
       reader.readAsDataURL(file);
     }
@@ -232,16 +348,7 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    const newPercentages = topNumbers.map((top, index) => {
-      const topValue = parseFloat(top);
-      const bottomValue = parseFloat(bottomNumbers[index]);
-      return topValue && bottomValue ? (bottomValue / topValue) * 100 : '';
-    });
-    setPercentages(newPercentages);
-  }, [topNumbers, bottomNumbers]);
-
-    const handleSave = async (overrides = {}) => {
+  const handleSave = async (overrides = {}) => {
     // Retrocompatibilità: se viene passato un booleano, è il toggle showUsername
     if (typeof overrides === 'boolean') {
       overrides = { showUsernameOnLeaderboard: overrides };
@@ -262,130 +369,204 @@ function App() {
       alert('Inserisci anche la città di nascita');
       return;
     }
-    const userRef = ref(db, `users/${username.toLowerCase().replace(/\s/g, '')}`);
-    setPreviousBottomNumbers([...merged.bottomNumbers]);
-    setPreviousOtherPRValues([...merged.otherPRValues]);
-    await update(userRef, {
-      s: merged.bottomNumbers[0] || null,
-      b: merged.bottomNumbers[1] || null,
-      d: merged.bottomNumbers[2] || null,
-      sObj: merged.topNumbers[0] || null,
-      bObj: merged.topNumbers[1] || null,
-      dObj: merged.topNumbers[2] || null,
-      bw: merged.bw || null,
-      gender: merged.gender || null,
-      prDate: merged.prDates,
-      prNotes: merged.prNotes,
-      otherPR: merged.otherPRValues,
-      otherPRActive: merged.otherPRActive,
-      otherPRDate: merged.otherPRDates,
-      otherPRNotes: merged.otherPRNotes,
-      previousBottomNumbers: [...merged.bottomNumbers],
-      previousOtherPRValues: [...merged.otherPRValues],
-      otherPRGoalValues: [...merged.otherPRGoalValues],
-      nextWorkout: merged.nextWorkout || null,
-      firstName: merged.firstName || null,
-      lastName: merged.lastName || null,
-      birthDate: merged.birthDate || null,
-      birthCity: merged.birthCity || null,
-      birthProvince: merged.birthProvince || null,
-      showUsernameOnLeaderboard: merged.showUsernameOnLeaderboard,
-      profilePhoto: merged.profilePhoto || null
-    });
-  };
+    try {
+      const userKey = normalizeUsername(username);
+      if (!userKey) return;
 
-  const loadLeaderboard = async () => {
-    const usersRef = ref(db, 'users');
-    const snapshot = await get(usersRef);
-    const leaderboardData = [];
-    snapshot.forEach((childSnapshot) => {
-      const userData = childSnapshot.val();
-      
-      // Parse lift values safely
-      const s = userData.s != null ? parseFloat(userData.s) : 0;
-      const b = userData.b != null ? parseFloat(userData.b) : 0;
-      const d = userData.d != null ? parseFloat(userData.d) : 0;
-      const bw = userData.bw != null ? parseFloat(userData.bw) : 0;
-      
-      // Only include users with at least one valid main lift (> 0)
-      const hasValidMainLift = (s > 0) || (b > 0) || (d > 0);
-      if (!hasValidMainLift) return;
-      
-      const otherPR = userData.otherPR || ['', '', '', ''];
-      const otherPRActive = userData.otherPRActive || [false, false, false, false];
-      
-      leaderboardData.push({
-        username: userData.username,
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
-        showUsernameOnLeaderboard: userData.showUsernameOnLeaderboard || false,
-        profilePhoto: userData.profilePhoto || '',
-        s: s > 0 ? String(s) : '',
-        b: b > 0 ? String(b) : '',
-        d: d > 0 ? String(d) : '',
-        bw: bw > 0 ? String(bw) : '',
-        gender: userData.gender || '',
-        birthDate: userData.birthDate || '',
-        otherPRValues: otherPR,
-        otherPRActive: otherPRActive,
-        total: (s + b + d) > 0 ? String(s + b + d) : '',
+      const userRef = ref(db, `users/${userKey}`);
+      await update(userRef, {
+        s: merged.bottomNumbers[0] || null,
+        b: merged.bottomNumbers[1] || null,
+        d: merged.bottomNumbers[2] || null,
+        sObj: merged.topNumbers[0] || null,
+        bObj: merged.topNumbers[1] || null,
+        dObj: merged.topNumbers[2] || null,
+        bw: merged.bw || null,
+        gender: merged.gender || null,
+        prDate: merged.prDates,
+        prNotes: merged.prNotes,
+        otherPR: merged.otherPRValues,
+        otherPRActive: merged.otherPRActive,
+        otherPRDate: merged.otherPRDates,
+        otherPRNotes: merged.otherPRNotes,
+        otherPRGoalValues: [...merged.otherPRGoalValues],
+        nextWorkout: merged.nextWorkout || null,
+        firstName: merged.firstName || null,
+        lastName: merged.lastName || null,
+        birthDate: merged.birthDate || null,
+        birthCity: merged.birthCity || null,
+        birthProvince: merged.birthProvince || null,
+        showUsernameOnLeaderboard: merged.showUsernameOnLeaderboard,
+        profilePhoto: merged.profilePhoto || null
       });
-    });
-    setLeaderboardData(leaderboardData);
+      setSaveError(false);
+    } catch (error) {
+      console.error('Errore durante il salvataggio:', error);
+      setSaveError(true);
+    }
   };
 
   useEffect(() => {
-    if (currentPage === 'Leaderboard') {
-      loadLeaderboard();
-    }
-  }, [currentPage, showUsernameOnLeaderboard]);
+    if (currentPage !== 'Leaderboard') return undefined;
+
+    const usersRef = ref(db, 'users');
+    const unsubscribe = onValue(
+      usersRef,
+      (snapshot) => {
+        setLeaderboardData(buildLeaderboardData(snapshot));
+        setLeaderboardError(false);
+      },
+      (error) => {
+        console.error('Errore durante il caricamento della classifica:', error);
+        setLeaderboardError(true);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [currentPage]);
 
   const handleChangeUsername = async () => {
-    if (newUsername) {
-      const lowercaseNewUsername = newUsername.toLowerCase().replace(/\s/g, '');
-      const newUserRef = ref(db, `users/${lowercaseNewUsername}`);
-      const snapshot = await get(newUserRef);
-      if (snapshot.exists()) {
-        alert('Username già in uso');
-      } else {
-        const oldUserRef = ref(db, `users/${username.toLowerCase().replace(/\s/g, '')}`);
-        const userData = (await get(oldUserRef)).val();
-        await set(newUserRef, {...userData, username: newUsername});
-        await set(oldUserRef, null);
-        setUsername(newUsername);
-        localStorage.setItem('username', newUsername);
-        alert('Username cambiato con successo');
+    const usernameError = validateUsername(newUsername);
+    if (usernameError) {
+      alert(usernameError);
+      return;
+    }
+
+    const cleanUsername = newUsername.trim();
+    const currentKey = normalizeUsername(username);
+    const newKey = normalizeUsername(cleanUsername);
+
+    if (!currentKey) {
+      alert('Sessione non valida. Effettua di nuovo il login.');
+      return;
+    }
+
+    try {
+      const currentUserRef = ref(db, `users/${currentKey}`);
+
+      // Stessa chiave Firebase (es. solo cambio di maiuscole): aggiorna il nome, non copiare/cancellare
+      if (newKey === currentKey) {
+        await update(currentUserRef, { username: cleanUsername });
+        setUsername(cleanUsername);
+        setNewUsername('');
+        localStorage.setItem('username', cleanUsername);
+        alert('Username aggiornato');
+        return;
       }
+
+      const newUserRef = ref(db, `users/${newKey}`);
+      const newUserSnapshot = await get(newUserRef);
+      if (newUserSnapshot.exists()) {
+        alert('Username già in uso');
+        return;
+      }
+
+      const currentUserSnapshot = await get(currentUserRef);
+      if (!currentUserSnapshot.exists()) {
+        alert('Utente non trovato. Effettua di nuovo il login.');
+        return;
+      }
+
+      await set(newUserRef, { ...currentUserSnapshot.val(), username: cleanUsername });
+      try {
+        await set(currentUserRef, null);
+      } catch (error) {
+        // Evita di lasciare un account duplicato se la cancellazione fallisce
+        await set(newUserRef, null);
+        throw error;
+      }
+
+      setUsername(cleanUsername);
+      setNewUsername('');
+      localStorage.setItem('username', cleanUsername);
+      alert('Username cambiato con successo');
+    } catch (error) {
+      console.error('Errore durante il cambio username:', error);
+      alert('Impossibile cambiare username. Controlla la connessione e riprova.');
     }
   };
 
   const handleChangePassword = async () => {
-    if (currentPassword && newPassword && confirmNewPassword) {
-      if (newPassword !== confirmNewPassword) {
-        alert('Le nuove password non corrispondono');
+    if (!currentPassword || !newPassword || !confirmNewPassword) {
+      alert('Per favore, compila tutti i campi');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      alert('Le nuove password non corrispondono');
+      return;
+    }
+
+    try {
+      const userKey = normalizeUsername(username);
+      if (!userKey) {
+        alert('Sessione non valida. Effettua di nuovo il login.');
         return;
       }
-      
-      const userRef = ref(db, `users/${username.toLowerCase().replace(/\s/g, '')}`);
+
+      const userRef = ref(db, `users/${userKey}`);
       const snapshot = await get(userRef);
-      if (snapshot.exists()) {
-        const userData = snapshot.val();
-        const isPasswordCorrect = await bcrypt.compare(currentPassword, userData.password);
-        if (isPasswordCorrect) {
-          const saltRounds = 10;
-          const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-          await update(userRef, {password: hashedNewPassword});
-          localStorage.setItem('password', newPassword);
-          alert('Password cambiata con successo');
-          setCurrentPassword('');
-          setNewPassword('');
-          setConfirmNewPassword('');
-        } else {
-          alert('La password corrente non è corretta');
-        }
+      if (!snapshot.exists()) {
+        alert('Utente non trovato. Effettua di nuovo il login.');
+        return;
       }
-    } else {
-      alert('Per favore, compila tutti i campi');
+
+      const userData = snapshot.val();
+      const isPasswordCorrect = await bcrypt.compare(currentPassword, userData.password);
+      if (!isPasswordCorrect) {
+        alert('La password corrente non è corretta');
+        return;
+      }
+
+      const saltRounds = 10;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
+      await update(userRef, { password: hashedNewPassword });
+      localStorage.setItem('password', newPassword);
+      alert('Password cambiata con successo');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmNewPassword('');
+    } catch (error) {
+      console.error('Errore durante il cambio password:', error);
+      alert('Impossibile cambiare la password. Controlla la connessione e riprova.');
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('username');
+    localStorage.removeItem('password');
+    setUsername('');
+    setPassword('');
+    setIsRegistering(false);
+    setShowFirstLoginModal(false);
+    setSaveError(false);
+    setLeaderboardError(false);
+    setCurrentPage('Login');
+  };
+
+  const handleDeleteAccount = async () => {
+    const confirmed = window.confirm(
+      'Vuoi eliminare definitivamente il tuo account e tutti i tuoi dati? Questa azione non può essere annullata.'
+    );
+    if (!confirmed) return;
+
+    try {
+      const userKey = normalizeUsername(username);
+      if (userKey) {
+        await set(ref(db, `users/${userKey}`), null);
+      }
+      localStorage.removeItem('username');
+      localStorage.removeItem('password');
+      setUsername('');
+      setPassword('');
+      setLeaderboardData([]);
+      setShowFirstLoginModal(false);
+      setSaveError(false);
+      setLeaderboardError(false);
+      setCurrentPage('Login');
+      alert('Account eliminato');
+    } catch (error) {
+      console.error("Errore durante l'eliminazione dell'account:", error);
+      alert("Impossibile eliminare l'account. Controlla la connessione e riprova.");
     }
   };
 
@@ -410,6 +591,7 @@ function App() {
               onChange={(e) => setUsername(e.target.value)}
               placeholder="Username"
               required
+              aria-label="Username"
             />
             <PasswordInput
               value={password} 
@@ -429,6 +611,7 @@ function App() {
                   onChange={(e) => setFirstName(e.target.value)}
                   placeholder="Nome"
                   className="info-input"
+                  aria-label="Nome"
                 />
               </div>
               <div className="info-item">
@@ -439,6 +622,7 @@ function App() {
                   onChange={(e) => setLastName(e.target.value)}
                   placeholder="Cognome"
                   className="info-input"
+                  aria-label="Cognome"
                 />
               </div>
               <div className="info-item">
@@ -449,6 +633,7 @@ function App() {
                   onChange={(e) => setBirthDate(e.target.value)}
                   placeholder="Data di Nascita"
                   className="info-input"
+                  aria-label="Data di nascita"
                 />
               </div>
               <div className="info-item">
@@ -457,6 +642,7 @@ function App() {
                   value={gender}
                   onChange={(e) => setGender(e.target.value)}
                   className="info-select"
+                  aria-label="Genere"
                 >
                   <option value="">Seleziona genere</option>
                   <option value="M">M</option>
@@ -471,6 +657,7 @@ function App() {
                   onChange={(e) => setBirthCity(e.target.value)}
                   placeholder="Città di Nascita"
                   className="info-input"
+                  aria-label="Città di nascita"
                 />
               </div>
               <div className="info-item">
@@ -481,6 +668,7 @@ function App() {
                   onChange={(e) => setBirthProvince(e.target.value)}
                   placeholder="Provincia"
                   className="info-input"
+                  aria-label="Provincia di nascita"
                 />
               </div>
               <div className="info-item credentials-item">
@@ -492,6 +680,7 @@ function App() {
                   placeholder="Username"
                   required
                   className="info-input"
+                  aria-label="Username"
                 />
               </div>
               <div className="info-item credentials-item">
@@ -534,6 +723,7 @@ function App() {
                 onChange={handleProfilePhotoChange}
                 className="profile-photo-file-input"
                 key={fileInputKey}
+                aria-label="Cambia foto profilo"
               />
               <Camera size={20} />
             </label>
@@ -578,6 +768,7 @@ function App() {
                 setShowUsernameOnLeaderboard(newVal); 
                 handleSave({ showUsernameOnLeaderboard: newVal }); 
               }}
+              aria-label="Mostra username su Leader Board"
             />
             <span className="toggle-slider"></span>
           </label>
@@ -598,6 +789,7 @@ function App() {
           value={newUsername}
           onChange={(e) => setNewUsername(e.target.value)}
           placeholder="Nuovo Username"
+          aria-label="Nuovo username"
         />
         <button onClick={handleChangeUsername}>Cambia Username</button>
       </div>
@@ -620,6 +812,12 @@ function App() {
         />
         <button onClick={handleChangePassword} className="change-password-button">Cambia Password</button>
       </div>
+      <div className="profile-section">
+        <h3>Account</h3>
+        <p className="profile-hint">Esci dal tuo account oppure elimina definitivamente i tuoi dati.</p>
+        <button type="button" onClick={handleLogout} className="logout-button">Logout</button>
+        <button type="button" onClick={handleDeleteAccount} className="danger-button">Elimina account</button>
+      </div>
     </div>
   );
 
@@ -638,25 +836,11 @@ function App() {
     ];
 
     const getPrPercentage = (index, isOther = false) => {
-      if (isOther) {
-        const current = parseFloat(otherPRValues[index]);
-        const goal = parseFloat(otherPRGoalValues[index] || '0');
-        const previous = parseFloat(previousOtherPRValues[index] || '0');
-        if (!current || !goal) return 0;
-        const base = previous || 0;
-        const diff = goal - base;
-        if (diff === 0) return 0;
-        return Math.min(((current - base) / diff) * 100, 100);
-      } else {
-        const current = parseFloat(bottomNumbers[index]);
-        const goal = parseFloat(topNumbers[index]);
-        const previous = parseFloat(previousBottomNumbers[index] || '0');
-        if (!current || !goal) return 0;
-        const base = previous || 0;
-        const diff = goal - base;
-        if (diff === 0) return 0;
-        return Math.min(((current - base) / diff) * 100, 100);
-      }
+      const current = parseFloat(isOther ? otherPRValues[index] : bottomNumbers[index]);
+      const goal = parseFloat(isOther ? otherPRGoalValues[index] : topNumbers[index]);
+      if (!current || !goal || goal <= 0) return 0;
+      const percentage = (current / goal) * 100;
+      return Math.min(Math.max(percentage, 0), 100);
     };
 
     return (
@@ -682,6 +866,7 @@ function App() {
                 onChange={(e) => { setBw(e.target.value); handleSave({ bw: e.target.value }); }}
                 className="info-input"
                 placeholder="kg"
+                aria-label="Peso corporeo"
               />
             </div>
             <div className="info-item">
@@ -690,6 +875,7 @@ function App() {
                 value={gender}
                 onChange={(e) => { setGender(e.target.value); handleSave({ gender: e.target.value }); }}
                 className="info-select"
+                aria-label="Genere"
               >
                 <option value="">Seleziona</option>
                 <option value="M">M</option>
@@ -706,7 +892,19 @@ function App() {
           </div>
           {exercises.map((ex) => (
             <div key={ex.key} className={`pr-card ${expandedCard === ex.index ? 'expanded' : ''}`}>
-              <div className="pr-card-header" onClick={() => setExpandedCard(expandedCard === ex.index ? null : ex.index)}>
+              <div
+                className="pr-card-header"
+                onClick={() => setExpandedCard(expandedCard === ex.index ? null : ex.index)}
+                role="button"
+                tabIndex={0}
+                aria-expanded={expandedCard === ex.index}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setExpandedCard(expandedCard === ex.index ? null : ex.index);
+                  }
+                }}
+              >
                 <div className="pr-card-icon-container">{ex.icon}</div>
                 <span className="pr-card-label">{ex.label}</span>
                 {expandedCard === ex.index ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -721,6 +919,7 @@ function App() {
                         value={bottomNumbers[ex.index]}
                         onChange={(e) => handleNumberChange(ex.index, false, e.target.value)}
                         className="pr-input"
+                        aria-label={`${ex.label} attuale`}
                       />
                     </div>
                     <div className="pr-field">
@@ -734,6 +933,7 @@ function App() {
                           setPrDates(next); handleSave({ prDates: next });
                         }}
                         className="pr-input"
+                        aria-label={`${ex.label} data`}
                       />
                     </div>
                   </div>
@@ -745,6 +945,7 @@ function App() {
                         value={topNumbers[ex.index]}
                         onChange={(e) => handleNumberChange(ex.index, true, e.target.value)}
                         className="pr-input"
+                        aria-label={`${ex.label} obiettivo`}
                       />
                     </div>
                   </div>
@@ -761,6 +962,7 @@ function App() {
                         className="pr-textarea"
                         placeholder="Aggiungi note..."
                         rows={2}
+                        aria-label={`${ex.label} note`}
                       />
                     </div>
                   </div>
@@ -803,6 +1005,7 @@ function App() {
                       next[idx] = e.target.checked;
                       setOtherPRActive(next); handleSave({ otherPRActive: next });
                     }}
+                    aria-label={`Attiva ${ex.label}`}
                   />
                   <span className="toggle-slider"></span>
                 </label>
@@ -823,6 +1026,7 @@ function App() {
                           setOtherPRValues(next); handleSave({ otherPRValues: next });
                         }}
                         className="pr-input"
+                        aria-label={`${ex.label} attuale`}
                       />
                     </div>
                     <div className="pr-field">
@@ -836,6 +1040,7 @@ function App() {
                           setOtherPRDates(next); handleSave({ otherPRDates: next });
                         }}
                         className="pr-input"
+                        aria-label={`${ex.label} data`}
                       />
                     </div>
                   </div>
@@ -851,6 +1056,7 @@ function App() {
                           setOtherPRGoalValues(next); handleSave({ otherPRGoalValues: next });
                         }}
                         className="pr-input"
+                        aria-label={`${ex.label} obiettivo`}
                       />
                     </div>
                   </div>
@@ -867,6 +1073,7 @@ function App() {
                         className="pr-textarea"
                         placeholder="Aggiungi note..."
                         rows={2}
+                        aria-label={`${ex.label} note`}
                       />
                     </div>
                   </div>
@@ -894,54 +1101,130 @@ function App() {
 
   const renderLeaderboardPage = () => (
     <div className="leaderboard">
+      {leaderboardError && (
+        <div className="leaderboard-error" role="alert">
+          Impossibile aggiornare la classifica in tempo reale. Verifica la connessione.
+        </div>
+      )}
       <LeaderboardWithSorting data={leaderboardData} />
     </div>
   );
 
+  const prMaxes = {
+    squat: Number.parseFloat(bottomNumbers[0]) || 0,
+    bench: Number.parseFloat(bottomNumbers[1]) || 0,
+    deadlift: Number.parseFloat(bottomNumbers[2]) || 0,
+  };
+
+  const handleToggleScheduledWorkout = (programId, weekNumber, dayNumber) => {
+    const normalizedUsername = normalizeUsername(username);
+    if (!normalizedUsername) return;
+
+    const key = workoutKey(programId, weekNumber, dayNumber);
+    const nextCompletions = { ...homeCompletions };
+    if (nextCompletions[key]) delete nextCompletions[key];
+    else nextCompletions[key] = new Date().toISOString();
+
+    if (persistCompletions(normalizedUsername, nextCompletions)) {
+      setHomeCompletions(nextCompletions);
+    }
+  };
+
   const renderProgrammazioniPage = () => (
-    <div className="programmazioni-page">
-      <h2>Programmazioni</h2>
-      <p>In arrivo...</p>
-    </div>
+    <Programmazioni
+      userId={normalizeUsername(username)}
+      prMaxes={prMaxes}
+    />
   );
 
-  const renderHomePage = () => (
-    <div className="home-page">
-      <div className="home-header">
-        <h1 className="home-title">Kuma Powerlifting</h1>
-        <p className="home-subtitle">powered by Marco Moscheo</p>
+  const renderHomePage = () => {
+    const activeProgram = selectActiveProgram(homePrograms);
+    const scheduledWorkout = activeProgram ? getNextWorkout(activeProgram) : null;
+    const isEndingSoon = activeProgram ? isProgramEndingSoon(activeProgram) : false;
+    const scheduledWorkoutKey = scheduledWorkout
+      ? workoutKey(activeProgram.id, scheduledWorkout.week.week, scheduledWorkout.session.day)
+      : '';
+    const isScheduledWorkoutDone = scheduledWorkoutKey
+      ? Boolean(homeCompletions[scheduledWorkoutKey])
+      : false;
+
+    return (
+      <div className="home-page">
+        <div className="home-header">
+          <h1 className="home-title">Kuma Powerlifting</h1>
+          <p className="home-subtitle">powered by Marco Moscheo</p>
+        </div>
+        <h2 className="home-welcome">Benvenuto, {username}!</h2>
+        <div className="home-grid">
+          <button className="home-card" onClick={() => setCurrentPage('Me')}>
+            <User size={48} />
+            <span>Personal Record</span>
+          </button>
+          <button className="home-card" onClick={() => setCurrentPage('Leaderboard')}>
+            <Trophy size={48} />
+            <span>Leader Board</span>
+          </button>
+          <button className="home-card" onClick={() => setCurrentPage('Programmazioni')}>
+            <Layout size={48} />
+            <span>Programmazioni</span>
+          </button>
+          <button className="home-card" onClick={() => setCurrentPage('Profile')}>
+            <Settings size={48} />
+            <span>Settings</span>
+          </button>
+        </div>
+
+        {isEndingSoon && <ProgramEndingWarning className="home-ending-warning" />}
+
+        <div className="next-workout-section">
+          <div className="next-workout-label">Il tuo prossimo allenamento è</div>
+
+          {scheduledWorkout ? (
+            <div className="next-workout-card">
+              <ProgramDay
+                program={activeProgram}
+                week={scheduledWorkout.week}
+                session={scheduledWorkout.session}
+                sessionIndex={scheduledWorkout.sessionIndex}
+                prMaxes={prMaxes}
+                title={`Week ${scheduledWorkout.week.week} | Day ${scheduledWorkout.sessionIndex + 1}`}
+                completed={isScheduledWorkoutDone}
+              />
+
+              <label className={`workout-complete-toggle${isScheduledWorkoutDone ? ' done' : ''}`}>
+                <input
+                  type="checkbox"
+                  checked={isScheduledWorkoutDone}
+                  onChange={() => handleToggleScheduledWorkout(
+                    activeProgram.id,
+                    scheduledWorkout.week.week,
+                    scheduledWorkout.session.day
+                  )}
+                />
+                <span className="workout-complete-track" aria-hidden="true">
+                  <span className="workout-complete-knob">
+                    {isScheduledWorkoutDone && <Check size={11} strokeWidth={3} />}
+                  </span>
+                </span>
+                <span>Hai fatto questo allenamento?</span>
+              </label>
+            </div>
+          ) : activeProgram ? (
+            <p className="next-workout-empty">Nessun allenamento in programma per questa scheda.</p>
+          ) : (
+            <input
+              type="text"
+              value={nextWorkout}
+              onChange={(e) => { setNextWorkout(e.target.value); handleSave({ nextWorkout: e.target.value }); }}
+              className="next-workout-input"
+              placeholder="Scrivi qui il tuo prossimo allenamento..."
+              aria-label="Prossimo allenamento"
+            />
+          )}
+        </div>
       </div>
-      <h2 className="home-welcome">Benvenuto, {username}!</h2>
-      <div className="home-grid">
-        <button className="home-card" onClick={() => setCurrentPage('Me')}>
-          <User size={48} />
-          <span>Personal Record</span>
-        </button>
-        <button className="home-card" onClick={() => setCurrentPage('Leaderboard')}>
-          <Trophy size={48} />
-          <span>Leader Board</span>
-        </button>
-        <button className="home-card" onClick={() => setCurrentPage('Programmazioni')}>
-          <Layout size={48} />
-          <span>Programmazioni</span>
-        </button>
-      <button className="home-card" onClick={() => setCurrentPage('Profile')}>
-        <Settings size={48} />
-        <span>Settings</span>
-      </button>
-      </div>
-      <div className="next-workout-section">
-        <div className="next-workout-label">Il tuo prossimo allenamento è</div>
-        <input
-          type="text"
-          value={nextWorkout}
-          onChange={(e) => { setNextWorkout(e.target.value); handleSave({ nextWorkout: e.target.value }); }}
-          className="next-workout-input"
-          placeholder="Scrivi qui il tuo prossimo allenamento..."
-        />
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="app">
@@ -955,30 +1238,35 @@ function App() {
       {!showSplash && currentPage === 'Programmazioni' && renderProgrammazioniPage()}
       {currentPage !== 'Login' && (
         <div className="menu-bar">
-          <button onClick={() => setCurrentPage('Home')}>
+          <button onClick={() => setCurrentPage('Home')} aria-label="Home" title="Home" aria-current={currentPage === 'Home' ? 'page' : undefined}>
             <Home size={24} />
           </button>
-          <button onClick={() => setCurrentPage('Me')}>
+          <button onClick={() => setCurrentPage('Me')} aria-label="Personal Record" title="Personal Record" aria-current={currentPage === 'Me' ? 'page' : undefined}>
             <User size={24} />
           </button>
-          <button onClick={() => setCurrentPage('Leaderboard')}>
+          <button onClick={() => setCurrentPage('Leaderboard')} aria-label="Leader Board" title="Leader Board" aria-current={currentPage === 'Leaderboard' ? 'page' : undefined}>
             <Trophy size={24} />
           </button>
-          <button onClick={() => setCurrentPage('Programmazioni')}>
+          <button onClick={() => setCurrentPage('Programmazioni')} aria-label="Programmazioni" title="Programmazioni" aria-current={currentPage === 'Programmazioni' ? 'page' : undefined}>
             <Layout size={24} />
           </button>
-          <button onClick={() => setCurrentPage('Profile')}>
+          <button onClick={() => setCurrentPage('Profile')} aria-label="Settings" title="Settings" aria-current={currentPage === 'Profile' ? 'page' : undefined}>
             <Settings size={24} />
           </button>
         </div>
       )}
+      {saveError && (
+        <div className="save-error-banner" role="alert">
+          Salvataggio non riuscito. Verifica la connessione e riprova.
+        </div>
+      )}
       {showFirstLoginModal && (
         <div className="first-login-modal-overlay">
-          <div className="first-login-modal">
+          <div className="first-login-modal" role="dialog" aria-modal="true" aria-labelledby="first-login-title">
             <div className="first-login-icon">
               <Dumbbell size={48} />
             </div>
-            <h2>Benvenuto in Kuma Powerlifting!</h2>
+            <h2 id="first-login-title">Benvenuto in Kuma Powerlifting!</h2>
             <p>Prima di iniziare, inserisci i tuoi massimali attuali (Squat, Bench Press, Deadlift) nella sezione <strong>Personal Record</strong>.</p>
             <p>Questo è necessario per calcolare il tuo totale e posizionarti in classifica.</p>
             <button className="first-login-btn" onClick={() => { setShowFirstLoginModal(false); setCurrentPage('Me'); }}>
