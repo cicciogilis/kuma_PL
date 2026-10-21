@@ -1,16 +1,34 @@
 import PropTypes from 'prop-types';
 import { CheckCircle2, Circle } from 'lucide-react';
 import './Programmazioni.css';
+import ProgramBlocks from './ProgramBlocks';
 import {
   compareLifts,
-  formatBlock,
-  formatRawWeight,
-  formatRpeReference,
-  formatSuggestedWeight,
   getMaxForLift,
-  getSuggestedWeight,
+  getStaccoVariant,
   noteKeyFor,
 } from './utils/programDisplay';
+
+const StaccoVariantControl = ({ liftLabel, value, onChange }) => (
+  <label className="program-variant">
+    <span className="program-variant-label">Variante</span>
+    <select
+      className="program-variant-select"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      aria-label={`Variante ${liftLabel}`}
+    >
+      <option value="classico">Classico</option>
+      <option value="sumo">Sumo</option>
+    </select>
+  </label>
+);
+
+StaccoVariantControl.propTypes = {
+  liftLabel: PropTypes.string,
+  value: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+};
 
 const ProgramDay = ({
   program,
@@ -24,6 +42,7 @@ const ProgramDay = ({
   noteDraft = {},
   onNoteChange = () => {},
   onToggleCompleted,
+  onVariantChange,
 }) => (
   <div className="program-day">
     <div className="program-day-title">
@@ -65,48 +84,35 @@ const ProgramDay = ({
       .map(({ lift, liftIndex }) => {
         const max = getMaxForLift(program, lift, prMaxes);
         const noteKey = noteKeyFor(week, session, liftIndex);
+        const isStacco = lift.key === 'stacco';
+        const staccoVariant = isStacco ? getStaccoVariant(program, lift) : '';
+        const hasVariantControl = isStacco && Boolean(onVariantChange);
+        const headerClassName = `program-lift-head${hasVariantControl ? ' program-lift-head-variant' : ''}`;
 
         return (
           <div
             className="program-lift"
             key={`${program.id}-${week.week}-${session.day}-${lift.key}-${liftIndex}`}
           >
-            <div className="program-lift-head">
-              <span className="program-lift-name">{lift.label}</span>
-              <div className="program-lift-blocks">
-                {(lift.blocks || []).map((block, blockIndex) => {
-                  const rawWeight = !block.percentBase
-                    && block.percent != null
-                    && max
-                    ? (max * block.percent) / 100
-                    : null;
-                  const suggestedWeight = getSuggestedWeight(rawWeight);
-                  const hasSuggestion = suggestedWeight != null
-                    && Math.abs(suggestedWeight - rawWeight) > 1e-6;
-
-                  return (
-                    <span
-                      className="program-block"
-                      key={`${lift.key}-block-${blockIndex}`}
-                    >
-                      {formatBlock(block)}
-                      {rawWeight != null && (
-                        <strong> → {formatRawWeight(rawWeight)} kg</strong>
-                      )}
-                      {hasSuggestion && (
-                        <span className="program-block-suggestion">
-                          ({formatSuggestedWeight(suggestedWeight)} kg)
-                        </span>
-                      )}
-                      {block.percentBase && (
-                        <span className="program-block-reference">
-                          (calcolato sul {formatRpeReference(block.percentBase)})
-                        </span>
-                      )}
+            <div className={headerClassName}>
+              <span className={`program-lift-name${isStacco ? ' program-lift-name-stacco' : ''}`}>
+                {isStacco ? (
+                  <>
+                    <span>Stacco</span>{' '}
+                    <span className="program-lift-name-variant">
+                      {staccoVariant === 'sumo' ? 'Sumo' : 'Classico'}
                     </span>
-                  );
-                })}
-              </div>
+                  </>
+                ) : lift.label}
+              </span>
+              <ProgramBlocks blocks={lift.blocks || []} max={max} />
+              {hasVariantControl && (
+                <StaccoVariantControl
+                  liftLabel={lift.label}
+                  value={staccoVariant}
+                  onChange={(variant) => onVariantChange(liftIndex, variant)}
+                />
+              )}
             </div>
 
             {isEditingNotes ? (
@@ -160,6 +166,7 @@ ProgramDay.propTypes = {
   noteDraft: PropTypes.object,
   onNoteChange: PropTypes.func,
   onToggleCompleted: PropTypes.func,
+  onVariantChange: PropTypes.func,
 };
 
 export default ProgramDay;

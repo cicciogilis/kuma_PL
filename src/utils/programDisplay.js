@@ -9,10 +9,25 @@ export const formatSuggestedWeight = (value) => SUGGESTED_WEIGHT_FORMATTER.forma
 export const noteKeyFor = (week, session, liftIndex) =>
   `${week.week}-${session.day}-${liftIndex}`;
 
+export const accessoryNoteKeyFor = (day, exerciseIndex) =>
+  `accessory-${day}-${exerciseIndex}`;
+
 export const getPrForLift = (lift, prMaxes) => {
   const key = lift.key === 'panca' ? 'bench' : lift.key === 'squat' ? 'squat' : 'deadlift';
   const value = Number(prMaxes?.[key]);
   return Number.isFinite(value) && value > 0 ? value : null;
+};
+
+export const getStaccoVariant = (program, lift) => {
+  if (lift?.variant === 'sumo' || lift?.variant === 'classico') return lift.variant;
+
+  const maxes = program?.maxes || {};
+  const hasClassico = Number(maxes.staccoClassico) > 0;
+  const hasSumo = Number(maxes.staccoSumo) > 0;
+
+  if (hasClassico && !hasSumo) return 'classico';
+  if (hasSumo && !hasClassico) return 'sumo';
+  return 'classico';
 };
 
 export const getMaxForLift = (program, lift, prMaxes) => {
@@ -22,7 +37,7 @@ export const getMaxForLift = (program, lift, prMaxes) => {
   if (lift.key === 'panca') return maxes.panca > 0 ? maxes.panca : null;
   if (lift.key === 'squat') return maxes.squat > 0 ? maxes.squat : null;
 
-  if (lift.variant === 'classico') {
+  if (getStaccoVariant(program, lift) === 'classico') {
     return maxes.staccoClassico > 0 ? maxes.staccoClassico : maxes.staccoSumo || null;
   }
   return maxes.staccoSumo > 0 ? maxes.staccoSumo : maxes.staccoClassico || null;
@@ -51,20 +66,36 @@ export const formatRpeReference = (base) => {
   return [reps, rpe].filter(Boolean).join(' ');
 };
 
-export const formatBlock = (block) => {
+const buildBlockParts = (block, accessory = false) => {
   const parts = [];
-  if (block.sets && block.reps) {
-    if (block.sets === 1 && block.rpe != null) {
-      parts.push(block.reps === 1 ? '1 ripetizione' : `${block.reps} ripetizioni`);
+  const sets = Number(block.sets);
+  const reps = block.reps == null ? '' : String(block.reps);
+
+  if (sets && reps) {
+    if (sets === 1 && block.rpe != null) {
+      parts.push(`${reps} rep`);
+    } else if (accessory && reps === 'max') {
+      parts.push(`${sets}× max`);
     } else {
-      parts.push(`${block.sets}×${block.reps}`);
+      parts.push(`${sets}×${reps}`);
     }
-  } else if (block.reps) {
-    parts.push(block.reps === 1 ? '1 ripetizione' : `${block.reps} ripetizioni`);
+  } else if (reps) {
+    parts.push(`${reps} rep`);
+  } else if (accessory && sets) {
+    parts.push(`${sets} serie`);
   }
 
-  if (block.percent != null) parts.push(`${formatNumber(block.percent)}%`);
-  if (block.rpe != null) parts.push(`RPE ${formatNumber(block.rpe)}`);
+  if (block.percent != null) parts.push(`@${formatNumber(block.percent)}%`);
+  if (block.rpe != null) parts.push(`@${formatNumber(block.rpe)}`);
 
-  return parts.join(' @ ');
+  return parts;
+};
+
+export const formatBlock = (block) => buildBlockParts(block).join(' ');
+
+export const formatAccessoryBlock = (block) => {
+  const details = buildBlockParts(block, true).join(' ');
+  return block.note
+    ? [details, `(${block.note})`].filter(Boolean).join(' ')
+    : details;
 };

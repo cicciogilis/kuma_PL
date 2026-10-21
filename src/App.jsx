@@ -15,7 +15,9 @@ import {
   loadCompletions,
   loadPrograms,
   persistCompletions,
+  persistPrograms,
   selectActiveProgram,
+  updateLiftVariant,
   workoutKey,
 } from './utils/programData';
 
@@ -1130,6 +1132,30 @@ function App() {
     }
   };
 
+  const handleChangeHomeLiftVariant = (
+    programId,
+    weekNumber,
+    dayNumber,
+    liftIndex,
+    variant
+  ) => {
+    const normalizedUsername = normalizeUsername(username);
+    if (!normalizedUsername) return;
+
+    const nextPrograms = updateLiftVariant(
+      homePrograms,
+      programId,
+      weekNumber,
+      dayNumber,
+      liftIndex,
+      variant
+    );
+
+    if (persistPrograms(normalizedUsername, nextPrograms)) {
+      setHomePrograms(nextPrograms);
+    }
+  };
+
   const renderProgrammazioniPage = () => (
     <Programmazioni
       userId={normalizeUsername(username)}
@@ -1189,6 +1215,15 @@ function App() {
                 prMaxes={prMaxes}
                 title={`Week ${scheduledWorkout.week.week} | Day ${scheduledWorkout.sessionIndex + 1}`}
                 completed={isScheduledWorkoutDone}
+                onVariantChange={(liftIndex, variant) =>
+                  handleChangeHomeLiftVariant(
+                    activeProgram.id,
+                    scheduledWorkout.week.week,
+                    scheduledWorkout.session.day,
+                    liftIndex,
+                    variant
+                  )
+                }
               />
 
               <label className={`workout-complete-toggle${isScheduledWorkoutDone ? ' done' : ''}`}>

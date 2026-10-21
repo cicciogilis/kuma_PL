@@ -163,6 +163,41 @@ export const selectActiveProgram = (programs, today = new Date()) => {
 export const workoutKey = (programId, weekNumber, dayNumber) =>
   `${programId || 'program'}:${weekNumber}:${dayNumber}`;
 
+export const updateLiftVariant = (
+  programs,
+  programId,
+  weekNumber,
+  dayNumber,
+  liftIndex,
+  variant
+) =>
+  programs.map((program) => {
+    if (program.id !== programId) return program;
+
+    return {
+      ...program,
+      weeks: (program.weeks || []).map((week) => {
+        if (String(week.week) !== String(weekNumber)) return week;
+
+        return {
+          ...week,
+          sessions: (week.sessions || []).map((session) => {
+            if (String(session.day) !== String(dayNumber)) return session;
+
+            return {
+              ...session,
+              lifts: (session.lifts || []).map((lift, index) =>
+                index === liftIndex && lift.key === 'stacco'
+                  ? { ...lift, variant }
+                  : lift
+              ),
+            };
+          }),
+        };
+      }),
+    };
+  });
+
 const programStorageKey = (userId) => `kuma_programs_${userId || 'guest'}`;
 const completionStorageKey = (userId) => `kuma_program_completions_${userId || 'guest'}`;
 

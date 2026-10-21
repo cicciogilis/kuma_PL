@@ -198,6 +198,233 @@ const parseLiftCell = (text, columnVariant) => {
   };
 };
 
+const DAY_HEADER_ONLY = /^[A-Za-zÀ-ÿ\s]+$/;
+
+// Inizio della prescrizione di un complementare:
+// "3x12/15", "3x max", "8 @9", "4 rpe 9", "85% 2x8".
+const ACCESSORY_START = /(?:\b\d+\s*(?:[x×]\s*(?:\d+(?:\s*\/\s*\d+)?|max)|@\s*\d+(?:[.,]\d+)?|rpe\s*@?\s*\d+(?:[.,]\d+)?)\b|\b\d+(?:[.,]\d+)?\s*%\s*(?=\d+\s*[x×]))/i;
+
+const ACCESSORY_MODIFIER = /^(back\s*off|backoff|back-off)\b[\s:,-]*/i;
+
+const normalizeReps = (value) =>
+  String(value ?? '')
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const cleanAccessoryNote = (value) =>
+  cleanNote(String(value ?? '').replace(/^[\s+;,]+/, ''));
+
+const ACCESSORY_BLOCK_PATTERNS = [
+  {
+    // 3x10/12, 3x max, 3x10 @8 85%
+    regex: /^(\d+)\s*[x×]\s*(\d+(?:\s*\/\s*\d+)?|max)\s*(?:@\s*(\d+(?:[.,]\d+)?))?\s*(?:(\d+(?:[.,]\d+)?)\s*%)?\s*(.*)$/i,
+    build: (match) => ({
+      sets: Number.parseInt(match[1], 10),
+      reps: normalizeReps(match[2]),
+      rpe: toNumber(match[3]),
+      percent: toNumber(match[4]),
+      note: match[5],
+    }),
+  },
+  {
+    // 8 @9
+    regex: /^(\d+(?:\s*\/\s*\d+)?)\s*@\s*(\d+(?:[.,]\d+)?)\s*(.*)$/i,
+    build: (match) => ({
+      sets: 1,
+      reps: normalizeReps(match[1]),
+      rpe: toNumber(match[2]),
+      percent: null,
+      note: match[3],
+    }),
+  },
+  {
+    // 4 rpe 9 | 4 rpe @9
+    regex: /^(\d+(?:\s*\/\s*\d+)?)\s*rpe\s*@?\s*(\d+(?:[.,]\d+)?)\s*(.*)$/i,
+    build: (match) => ({
+      sets: 1,
+      reps: normalizeReps(match[1]),
+      rpe: toNumber(match[2]),
+      percent: null,
+      note: match[3],
+    }),
+  },
+  {
+    // 85% 2x8
+    regex: /^(\d+(?:[.,]\d+)?)\s*%\s*(\d+)\s*[x×]\s*(\d+(?:\s*\/\s*\d+)?|max)\s*(.*)$/i,
+    build: (match) => ({
+      sets: Number.parseInt(match[2], 10),
+      reps: normalizeReps(match[3]),
+      rpe: null,
+      percent: toNumber(match[1]),
+      note: match[4],
+    }),
+  },
+  {
+    // 1x stripping | 1x drop set
+    regex: /^(\d+)\s*[x×]\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ\s'’-]*)\s*$/i,
+    build: (match) => ({
+      sets: Number.parseInt(match[1], 10),
+      reps: null,
+      rpe: null,
+      percent: null,
+      note: match[2],
+    }),
+  },
+  {
+    // 80%
+    regex: /^(\d+(?:[.,]\d+)?)\s*%\s*(.*)$/i,
+    build: (match) => ({
+      sets: null,
+      reps: null,
+      rpe: null,
+      percent: toNumber(match[1]),
+      note: match[2],
+    }),
+  },
+];
+
+const splitAccessoryPrescription = (content) =>
+  content.split(/\s*(?:\+|;|,\s+)\s*/).filter(Boolean);
+
+const parseAccessoryPrescription = (prescription) => {
+  const blocks = [];
+  const notes = [];
+  let lastRpeBlock = null;
+
+  splitAccessoryPrescription(prescription).forEach((segment) => {
+    let trimmed = segment.trim();
+    if (!trimmed) return;
+
+    let modifier = '';
+    const modifierMatch = trimmed.match(ACCESSORY_MODIFIER);
+    if (modifierMatch) {
+      modifier = cleanNote(modifierMatch[1]);
+      trimmed = trimmed.slice(modifierMatch[0].length).trim();
+      if (!trimmed) return;
+    }
+
+    for (const pattern of ACCESSORY_BLOCK_PATTERNS) {
+      const match = trimmed.match(pattern.regex);
+      if (!match) continue;
+
+      const block = pattern.build(match);
+      const isRpeBlock = block.rpe != null && block.percent == null;
+      const percentBase = block.percent != null && block.rpe == null && lastRpeBlock
+        ? {
+            sets: lastRpeBlock.sets,
+            reps: lastRpeBlock.reps,
+            rpe: lastRpeBlock.rpe,
+          }
+        : null;
+
+      const patternNote = cleanAccessoryNote(block.note);
+      const isLabelBlock = block.reps == null
+        && block.percent == null
+        && block.sets != null
+        && Boolean(patternNote);
+      const blockNote = [modifier, isLabelBlock ? patternNote : '']
+        .filter(Boolean)
+        .join(' · ');
+
+      const parsedBlock = {
+        sets: block.sets,
+        reps: block.reps,
+        rpe: block.rpe,
+        percent: block.percent,
+        percentBase,
+        note: blockNote,
+      };
+      blocks.push(parsedBlock);
+
+      if (isRpeBlock) lastRpeBlock = parsedBlock;
+      if (!isLabelBlock && patternNote) notes.push(patternNote);
+      return;
+    }
+
+    const note = cleanAccessoryNote(trimmed);
+    if (note) notes.push(note);
+  });
+
+  return {
+    blocks,
+    notes: [...new Set(notes)].join(' · '),
+  };
+};
+
+const FUNDAMENTAL_ACCESSORY_NAME = /^(?:squat|panca|stacco(?:\s+(?:sumo|classico))?)$/i;
+
+const parseAccessoryExercise = (rawText) => {
+  const text = cellText(rawText);
+  if (!text) return null;
+  if (/\(programma\)/i.test(text)) return null;
+
+  const startMatch = text.match(ACCESSORY_START);
+  const name = startMatch
+    ? text.slice(0, startMatch.index).replace(/[\s,;:+\-–—]+$/, '').trim()
+    : text;
+  const cleanName = cleanNote(name) || 'Complementare';
+
+  if (FUNDAMENTAL_ACCESSORY_NAME.test(cleanName)) return null;
+
+  const prescription = startMatch ? text.slice(startMatch.index).trim() : '';
+  const parsed = parseAccessoryPrescription(prescription);
+
+  return {
+    name: cleanName,
+    blocks: parsed.blocks,
+    notes: parsed.notes,
+    raw: text,
+  };
+};
+
+export const parseAccessoryText = (text) => parseAccessoryExercise(text);
+
+const parseComplementari = (rows, headerRowIndex) => {
+  if (!Array.isArray(rows) || headerRowIndex <= 0) return [];
+
+  const dayHeaders = [];
+
+  rows.forEach((row, rowIndex) => {
+    if (rowIndex >= headerRowIndex) return;
+    row.forEach((cell, colIndex) => {
+      const text = cellText(cell);
+      if (!text || !DAY_HEADER_ONLY.test(text)) return;
+
+      const day = findDay(text);
+      if (!day) return;
+
+      dayHeaders.push({ rowIndex, colIndex, day });
+    });
+  });
+
+  if (!dayHeaders.length) return [];
+
+  const headerRows = [...new Set(dayHeaders.map((header) => header.rowIndex))]
+    .sort((a, b) => a - b);
+
+  return dayHeaders
+    .sort((a, b) => (a.rowIndex - b.rowIndex) || (a.colIndex - b.colIndex))
+    .map((header, index) => {
+      const nextHeaderRow = headerRows.find((row) => row > header.rowIndex) ?? headerRowIndex;
+      const exercises = [];
+
+      for (let rowIndex = header.rowIndex + 1; rowIndex < nextHeaderRow; rowIndex += 1) {
+        const text = cellText(rows[rowIndex]?.[header.colIndex]);
+        if (!text) continue;
+
+        const parsed = parseAccessoryExercise(text);
+        if (parsed) exercises.push(parsed);
+      }
+
+      return {
+        day: index + 1,
+        weekday: header.day.label,
+        exercises,
+      };
+    });
+};
+
 const parseWorksheet = (sheet, sheetName, XLSX) => {
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false, defval: '' });
   if (!rows.length) throw new ScheduleParseError('Il foglio è vuoto.');
@@ -356,6 +583,7 @@ const parseWorksheet = (sheet, sheetName, XLSX) => {
     .sort((a, b) => (a.week - b.week) || (a.day - b.day));
 
   const weekNumbers = [...new Set(sortedSessions.map((session) => session.week))].sort((a, b) => a - b);
+  const complementari = parseComplementari(rows, headerRowIndex);
 
   return {
     sheetName,
@@ -364,10 +592,12 @@ const parseWorksheet = (sheet, sheetName, XLSX) => {
       week,
       sessions: sortedSessions.filter((session) => session.week === week),
     })),
+    complementari,
     stats: {
       weeks: weekNumbers.length,
       sessions: sortedSessions.length,
       lifts: new Set(sortedSessions.flatMap((session) => session.lifts.map((lift) => lift.key))).size,
+      complementari: complementari.reduce((total, day) => total + day.exercises.length, 0),
     },
   };
 };
@@ -406,31 +636,39 @@ export const parseScheduleFile = async (data) => {
 const TEMPLATE_ROWS = [
   ['Kuma Powerlifting - Template Programmazione'],
   [],
-  ['Programma Panca', 100, '', 'Programma Squat', 150, '', 'Programma Stacco', '180 / 170'],
+  ['Complementari (opzionale)'],
+  ['Lunedì', '', 'Martedì'],
+  ['Lat machine, presa neutra 8 @9 + 90% 2x8', '', 'Spinte su panca 6 @9 + back off 2x8'],
+  ['Alzate laterali 3x10/12 + 1x stripping', '', 'Croci alla macchina 3x12/15'],
+  ['Giovedì', '', 'Venerdì'],
+  ['Pulley triangolo 8 @9 + 90% 2x8', '', 'Pressa a 45° 8 @8 + back off 85% 2x8'],
+  ['Leg extension 3x10/12', '', 'Stacco Rumeno 8 @8 + 90% 2x8'],
   [],
-  ['1 week', '', '', '1 week', '', '', '1 week'],
-  ['Lun: 4x4 70%', '', '', 'Lun: 5x5 75%', '', '', ''],
-  ['Mar: 3x5 75%', '', '', '', '', '', 'Mar: 4x4 80%'],
-  ['Gio: 5x5 80%', '', '', 'Gio: 3x3 85%', '', '', ''],
-  ['Ven: 2 @8 + 85% 3x3', '', '', '', '', '', 'Ven: 4x4 70% classico'],
+  ['Programma Panca', 100, 'Programma Squat', 150, 'Programma Stacco', '180 / 170'],
   [],
-  ['2 week', '', '', '2 week', '', '', '2 week'],
-  ['Lun: 4x4 75%', '', '', 'Lun: 5x5 80%', '', '', ''],
-  ['Mar: 3x5 80%', '', '', '', '', '', 'Mar: 4x4 85%'],
-  ['Gio: 5x3 85%', '', '', 'Gio: 3x3 90%', '', '', ''],
-  ['Ven: 2 @9 + 90% 3x2', '', '', '', '', '', 'Ven: 3x3 75% sumo'],
+  ['1 week', '', '1 week', '', '1 week', ''],
+  ['Lun: 4x4 70%', '', 'Lun: 5x5 75%', '', '', ''],
+  ['Mar: 3x5 75%', '', '', '', 'Mar: 4x4 80%', ''],
+  ['Gio: 5x5 80%', '', 'Gio: 3x3 85%', '', '', ''],
+  ['Ven: 2 @8 + 85% 3x3', '', '', '', 'Ven: 4x4 70% classico', ''],
   [],
-  ['3 week', '', '', '3 week', '', '', '3 week'],
-  ['Lun: 4x5 70%', '', '', 'Lun: 5x5 85%', '', '', ''],
-  ['Mar: 3x4 80%', '', '', '', '', '', 'Mar: 4x4 90%'],
-  ['Gio: 5x5 80%', '', '', 'Gio: 3x3 95%', '', '', ''],
-  ['Ven: 2 @8 + 85% 3x3', '', '', '', '', '', 'Ven: 4x3 80% classico'],
+  ['2 week', '', '2 week', '', '2 week', ''],
+  ['Lun: 4x4 75%', '', 'Lun: 5x5 80%', '', '', ''],
+  ['Mar: 3x5 80%', '', '', '', 'Mar: 4x4 85%', ''],
+  ['Gio: 5x3 85%', '', 'Gio: 3x3 90%', '', '', ''],
+  ['Ven: 2 @9 + 90% 3x2', '', '', '', 'Ven: 3x3 75% sumo', ''],
   [],
-  ['4 week', '', '', '4 week', '', '', '4 week'],
-  ['Lun: 3x3 70%', '', '', 'Lun: 4x3 80%', '', '', ''],
-  ['Mar: 2 @8 + 85% 2x2', '', '', '', '', '', 'Mar: 3x3 90%'],
-  ['Gio: 4x4 75%', '', '', 'Gio: 3x2 90%', '', '', ''],
-  ['Ven: 1 @8 + 80% 2x2', '', '', '', '', '', 'Ven: 3x3 85% sumo'],
+  ['3 week', '', '3 week', '', '3 week', ''],
+  ['Lun: 4x5 70%', '', 'Lun: 5x5 85%', '', '', ''],
+  ['Mar: 3x4 80%', '', '', '', 'Mar: 4x4 90%', ''],
+  ['Gio: 5x5 80%', '', 'Gio: 3x3 95%', '', '', ''],
+  ['Ven: 2 @8 + 85% 3x3', '', '', '', 'Ven: 4x3 80% classico', ''],
+  [],
+  ['4 week', '', '4 week', '', '4 week', ''],
+  ['Lun: 3x3 70%', '', 'Lun: 4x3 80%', '', '', ''],
+  ['Mar: 2 @8 + 85% 2x2', '', '', '', 'Mar: 3x3 90%', ''],
+  ['Gio: 4x4 75%', '', 'Gio: 3x2 90%', '', '', ''],
+  ['Ven: 1 @8 + 80% 2x2', '', '', '', 'Ven: 3x3 85% sumo', ''],
 ];
 
 const TEMPLATE_INSTRUCTIONS = [
@@ -442,9 +680,12 @@ const TEMPLATE_INSTRUCTIONS = [
   ['4. Sotto il marcatore inserisci una riga per ogni giorno: "Lun: 5x5 80%".'],
   ['5. Puoi mettere più blocchi nella stessa cella: "Lun: 2 @8 + 85% 3x3" oppure "Gio: 2x1 90%, 3x6 75%".'],
   ['6. Le varianti (larsen, highbar, safety bar, fermo 1", sumo, classico...) finiscono nelle note.'],
-  ['7. I complementari, i recuperi (es. "rec", "Max 4 secondi") e i riposi vengono ignorati.'],
-  ['8. Le percentuali sono calcolate sul massimale indicato qui oppure sui PR dell\'app, se il toggle è attivo.'],
-  ['9. Se una percentuale segue un blocco RPE (es. "4 rpe 9 + 2x4 90%" oppure "4 @9 + 2x4 90%"), si applica al carico di quel blocco RPE e non al massimale.'],
+  ['7. Per i complementari crea una sezione sopra la programmazione: una riga con i giorni (es. "Lunedì" e "Martedì") e sotto una riga per esercizio nella stessa colonna.'],
+  ['8. Per ogni complementare scrivi nome e prescrizione (es. "Pulley triangolo 8 @9 + 90% 2x8"): le percentuali dopo un blocco RPE vengono calcolate sul carico di quel blocco.'],
+  ['9. Squat, Panca e Stacco (righe "(programma)") non vengono importati nei complementari.'],
+  ['10. Le percentuali sono calcolate sul massimale indicato qui oppure sui PR dell\'app, se il toggle è attivo.'],
+  ['11. Se una percentuale segue un blocco RPE (es. "4 rpe 9 + 2x4 90%" oppure "4 @9 + 2x4 90%"), si applica al carico di quel blocco RPE e non al massimale.'],
+  ['12. Se disattivi "Includi anche i complementari" nel form, puoi inserirli manualmente nell\'app.'],
   [],
   ['Esempi validi:'],
   ['Lun: 5x5 80%'],
@@ -452,6 +693,11 @@ const TEMPLATE_INSTRUCTIONS = [
   ['Gio: 2x2 85%, 3x6 75%'],
   ['Ven: 4x4 70% classico'],
   ['Sab: 4 rpe 9 + 2x4 90%'],
+  [],
+  ['Esempi complementari:'],
+  ['Lunedì | Martedì'],
+  ['Lat machine, presa neutra 8 @9 + 90% 2x8 | Spinte su panca 6 @9 + back off 2x8'],
+  ['Alzate laterali 3x10/12 + 1x stripping | Pressa a 45° 8 @8 + back off 85% 2x8'],
 ];
 
 export const downloadTemplate = async () => {
@@ -459,9 +705,8 @@ export const downloadTemplate = async () => {
   const workbook = XLSX.utils.book_new();
   const programSheet = XLSX.utils.aoa_to_sheet(TEMPLATE_ROWS);
   programSheet['!cols'] = [
-    { wch: 28 }, { wch: 10 }, { wch: 3 },
-    { wch: 28 }, { wch: 10 }, { wch: 3 },
-    { wch: 28 }, { wch: 12 },
+    { wch: 28 }, { wch: 10 }, { wch: 28 },
+    { wch: 10 }, { wch: 28 }, { wch: 12 },
   ];
   XLSX.utils.book_append_sheet(workbook, programSheet, 'Programmazione');
 

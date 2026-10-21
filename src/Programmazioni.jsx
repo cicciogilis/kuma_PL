@@ -16,9 +16,14 @@ import {
   Trash2,
 } from 'lucide-react';
 import './Programmazioni.css';
+import ProgramBlocks from './ProgramBlocks';
 import ProgramDay from './ProgramDay';
 import ProgramEndingWarning from './ProgramEndingWarning';
-import { downloadTemplate, parseScheduleFile } from './utils/scheduleParser';
+import {
+  downloadTemplate,
+  parseAccessoryText,
+  parseScheduleFile,
+} from './utils/scheduleParser';
 import {
   formatDateIt,
   isProgramEndingSoon,
@@ -27,16 +32,164 @@ import {
   persistCompletions,
   persistPrograms,
   todayIso,
+  updateLiftVariant,
   workoutKey,
 } from './utils/programData';
-import { formatNumber, getPrForLift, noteKeyFor } from './utils/programDisplay';
+import {
+  accessoryNoteKeyFor,
+  formatNumber,
+  getPrForLift,
+  noteKeyFor,
+} from './utils/programDisplay';
 
 const makeEmptyForm = () => ({
   name: 'Scheda Maggio',
   startDate: todayIso(),
   durationWeeks: '4',
   usePrMax: true,
+  includeComplementari: true,
 });
+
+const makeEmptyCustomExercise = () => ({
+  id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  name: '',
+  sets: '',
+  reps: '',
+  notes: '',
+});
+
+const makeEmptyCustomComplementari = () =>
+  [1, 2, 3, 4].map((day) => ({
+    day,
+    weekday: '',
+    exercises: [],
+  }));
+
+const isFundamentalAccessory = (exercise) => {
+  const name = String(exercise?.name || '')
+    .replace(/\s*\(programma\)\s*/i, '')
+    .trim();
+  return /^(?:squat|panca|stacco(?:\s+(?:sumo|classico))?)$/i.test(name);
+};
+
+const upgradeAccessoryExercise = (exercise) => {
+  if (!exercise) return exercise;
+  if (Array.isArray(exercise.blocks) && exercise.blocks.length > 0) return exercise;
+  if (!exercise.raw) return exercise;
+
+  const parsed = parseAccessoryText(exercise.raw);
+  if (!parsed || !parsed.blocks.length) return exercise;
+
+  const legacyNotes = String(exercise.notes || '').trim();
+  const rawText = String(exercise.raw).trim();
+  const notesArePrescription = Boolean(legacyNotes) && rawText.includes(legacyNotes);
+
+  return {
+    ...exercise,
+    blocks: parsed.blocks,
+    notes: notesArePrescription ? parsed.notes : (legacyNotes || parsed.notes),
+  };
+};
+
+const cleanCustomComplementari = (days) =>
+  days
+    .map((day) => ({
+      day: day.day,
+      weekday: day.weekday || '',
+      exercises: day.exercises
+        .map((exercise) => ({
+          name: exercise.name.trim(),
+          sets: exercise.sets.trim(),
+          reps: exercise.reps.trim(),
+          notes: exercise.notes.trim(),
+        }))
+        .filter((exercise) =>
+          exercise.name || exercise.sets || exercise.reps || exercise.notes
+        )
+        .map((exercise) => ({
+          ...exercise,
+          name: exercise.name || 'Complementare',
+        })),
+    }))
+    .filter((day) => day.exercises.length > 0);
+
+const WEEKDAY_OPTIONS = [
+  'Lunedì',
+  'Martedì',
+  'Mercoledì',
+  'Giovedì',
+  'Venerdì',
+  'Sabato',
+  'Domenica',
+];
+
+const makeEmptyAccessoryDayForm = () => ({
+  name: '',
+  weekday: '',
+});
+
+const makeEmptyAccessoryExerciseForm = () => ({
+  name: '',
+  series: '',
+  reps: '',
+  notes: '',
+});
+
+const prepareComplementariForEdit = (days) =>
+  (Array.isArray(days) ? days : [])
+    .filter((day) => day && typeof day === 'object')
+    .map((day, index) => ({
+      ...day,
+      day: Number.isFinite(Number(day.day)) ? Number(day.day) : index + 1,
+      name: typeof day.name === 'string' ? day.name : '',
+      weekday: typeof day.weekday === 'string' ? day.weekday : '',
+      exercises: (Array.isArray(day.exercises) ? day.exercises : [])
+        .map((exercise) => upgradeAccessoryExercise(exercise))
+        .filter((exercise) => exercise && !isFundamentalAccessory(exercise)),
+    }));
+
+const splitAccessoryParts = (value) =>
+  String(value || '')
+    .split('+')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+const buildAccessoryBlocks = (seriesInput, repsInput) => {
+  const seriesText = String(seriesInput || '').trim();
+  const repsText = String(repsInput || '').trim();
+  if (!seriesText) return [];
+
+  if (/[x×]/i.test(seriesText)) {
+    const parsed = parseAccessoryText(`Esercizio ${seriesText.replace(/×/g, 'x')}`);
+    return parsed?.blocks || [];
+  }
+
+  const seriesParts = splitAccessoryParts(seriesText);
+  const repsParts = splitAccessoryParts(repsText);
+  if (!seriesParts.length || !repsParts.length) return [];
+
+  const makeBlock = (setsPart, reps) => ({
+    sets: Number.parseInt(setsPart, 10),
+    reps: String(reps).trim(),
+    rpe: null,
+    percent: null,
+    percentBase: null,
+    note: '',
+  });
+
+  let blocks = [];
+  if (seriesParts.length === 1) {
+    blocks = repsParts.map((reps) => makeBlock(seriesParts[0], reps));
+  } else if (repsParts.length === 1) {
+    blocks = seriesParts.map((sets) => makeBlock(sets, repsParts[0]));
+  } else if (seriesParts.length === repsParts.length) {
+    blocks = seriesParts.map((sets, index) => makeBlock(sets, repsParts[index]));
+  }
+
+  return blocks.filter((block) =>
+    Number.isFinite(block.sets) && block.sets > 0 && block.reps
+  );
+};
 
 const formatMaxes = (maxes) => {
   if (!maxes) return 'Nessun massimale indicato nella scheda';
@@ -56,7 +209,7 @@ const formatMaxes = (maxes) => {
   return parts.length ? parts.join(' · ') : 'Nessun massimale indicato nella scheda';
 };
 
-const buildNotesDraft = (program) => {
+const buildNotesDraft = (program, complementari = program.complementari || []) => {
   const draft = {};
   program.weeks.forEach((week) => {
     week.sessions.forEach((session) => {
@@ -65,28 +218,68 @@ const buildNotesDraft = (program) => {
       });
     });
   });
+
+  (complementari || []).forEach((day) => {
+    (day.exercises || []).forEach((exercise, exerciseIndex) => {
+      const upgraded = upgradeAccessoryExercise(exercise);
+      draft[accessoryNoteKeyFor(day.day, exerciseIndex)] = upgraded.notes || '';
+    });
+  });
+
   return draft;
 };
 
-const applyNotesDraft = (program, draft) => ({
-  ...program,
-  weeks: program.weeks.map((week) => ({
-    ...week,
-    sessions: week.sessions.map((session) => ({
-      ...session,
-      lifts: session.lifts.map((lift, liftIndex) => ({
-        ...lift,
-        notes: (draft[noteKeyFor(week, session, liftIndex)] ?? '').trim(),
+const applyProgramEdit = (program, draft, complementariDraft = program.complementari || []) => {
+  const updated = {
+    ...program,
+    weeks: program.weeks.map((week) => ({
+      ...week,
+      sessions: week.sessions.map((session) => ({
+        ...session,
+        lifts: session.lifts.map((lift, liftIndex) => ({
+          ...lift,
+          notes: (draft[noteKeyFor(week, session, liftIndex)] ?? '').trim(),
+        })),
       })),
     })),
-  })),
-});
+    complementari: (complementariDraft || [])
+      .map((day) => ({
+        ...day,
+        name: String(day.name || '').trim(),
+        weekday: day.weekday || '',
+        exercises: (day.exercises || [])
+          .map((exercise, exerciseIndex) => {
+            const upgraded = upgradeAccessoryExercise(exercise);
+            return {
+              ...upgraded,
+              notes: (
+                draft[accessoryNoteKeyFor(day.day, exerciseIndex)] ?? upgraded.notes ?? ''
+              ).trim(),
+            };
+          })
+          .filter((exercise) => exercise.name && !isFundamentalAccessory(exercise)),
+      }))
+      .filter((day) => day.exercises.length > 0)
+      .map((day, index) => ({ ...day, day: index + 1 })),
+  };
+
+  updated.stats = {
+    ...(program.stats || {}),
+    complementari: updated.complementari.reduce(
+      (total, day) => total + day.exercises.length,
+      0
+    ),
+  };
+
+  return updated;
+};
 
 const Programmazioni = ({ userId, prMaxes }) => {
   const [programs, setPrograms] = useState(() => loadPrograms(userId));
   const [completions, setCompletions] = useState(() => loadCompletions(userId));
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState(makeEmptyForm);
+  const [customComplementari, setCustomComplementari] = useState(makeEmptyCustomComplementari);
   const [selectedFileName, setSelectedFileName] = useState('');
   const [parsedSchedule, setParsedSchedule] = useState(null);
   const [parseError, setParseError] = useState('');
@@ -95,9 +288,20 @@ const Programmazioni = ({ userId, prMaxes }) => {
   const [pageError, setPageError] = useState('');
   const [expandedProgramId, setExpandedProgramId] = useState(null);
   const [openWeeks, setOpenWeeks] = useState({});
-  const [editingNotesProgramId, setEditingNotesProgramId] = useState(null);
+  const [openAccessories, setOpenAccessories] = useState({});
+  const [openAccessoryDays, setOpenAccessoryDays] = useState({});
+  const [editingProgramId, setEditingProgramId] = useState(null);
   const [noteDraft, setNoteDraft] = useState({});
-  const [noteEditError, setNoteEditError] = useState('');
+  const [programEditError, setProgramEditError] = useState('');
+  const [accessoryDraft, setAccessoryDraft] = useState([]);
+  const [isAddAccessoryDayOpen, setIsAddAccessoryDayOpen] = useState(false);
+  const [accessoryDayForm, setAccessoryDayForm] = useState(makeEmptyAccessoryDayForm);
+  const [accessoryDayError, setAccessoryDayError] = useState('');
+  const [addAccessoryExerciseDay, setAddAccessoryExerciseDay] = useState(null);
+  const [accessoryExerciseForm, setAccessoryExerciseForm] = useState(
+    makeEmptyAccessoryExerciseForm
+  );
+  const [accessoryExerciseError, setAccessoryExerciseError] = useState('');
   const parseRequestId = useRef(0);
 
   useEffect(() => {
@@ -105,14 +309,24 @@ const Programmazioni = ({ userId, prMaxes }) => {
     setCompletions(loadCompletions(userId));
     setExpandedProgramId(null);
     setOpenWeeks({});
-    setEditingNotesProgramId(null);
+    setOpenAccessories({});
+    setOpenAccessoryDays({});
+    setEditingProgramId(null);
     setNoteDraft({});
-    setNoteEditError('');
+    setProgramEditError('');
+    setAccessoryDraft([]);
+    setIsAddAccessoryDayOpen(false);
+    setAccessoryDayForm(makeEmptyAccessoryDayForm());
+    setAccessoryDayError('');
+    setAddAccessoryExerciseDay(null);
+    setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
+    setAccessoryExerciseError('');
   }, [userId]);
 
   const resetForm = () => {
     parseRequestId.current += 1;
     setForm(makeEmptyForm());
+    setCustomComplementari(makeEmptyCustomComplementari());
     setSelectedFileName('');
     setParsedSchedule(null);
     setParseError('');
@@ -202,6 +416,44 @@ const Programmazioni = ({ userId, prMaxes }) => {
     });
   };
 
+  const handleAddCustomAccessory = (dayNumber) => {
+    const exercise = makeEmptyCustomExercise();
+    setCustomComplementari((previous) =>
+      previous.map((day) =>
+        day.day === dayNumber
+          ? { ...day, exercises: [...day.exercises, exercise] }
+          : day
+      )
+    );
+  };
+
+  const handleChangeCustomAccessory = (dayNumber, exerciseId, field, value) => {
+    setCustomComplementari((previous) =>
+      previous.map((day) => {
+        if (day.day !== dayNumber) return day;
+        return {
+          ...day,
+          exercises: day.exercises.map((exercise) =>
+            exercise.id === exerciseId ? { ...exercise, [field]: value } : exercise
+          ),
+        };
+      })
+    );
+  };
+
+  const handleRemoveCustomAccessory = (dayNumber, exerciseId) => {
+    setCustomComplementari((previous) =>
+      previous.map((day) =>
+        day.day === dayNumber
+          ? {
+              ...day,
+              exercises: day.exercises.filter((exercise) => exercise.id !== exerciseId),
+            }
+          : day
+      )
+    );
+  };
+
   const handleSave = (event) => {
     event.preventDefault();
     setFormError('');
@@ -227,18 +479,24 @@ const Programmazioni = ({ userId, prMaxes }) => {
       return;
     }
 
+    const complementari = form.includeComplementari
+      ? (parsedSchedule.complementari || [])
+      : cleanCustomComplementari(customComplementari);
+
     const program = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name,
       startDate: form.startDate,
       durationWeeks,
       usePrMax: form.usePrMax,
+      includeComplementari: form.includeComplementari,
       fileName: selectedFileName,
       sheetName: parsedSchedule.sheetName,
       createdAt: new Date().toISOString(),
       maxes: parsedSchedule.maxes,
       stats: parsedSchedule.stats,
       weeks: parsedSchedule.weeks,
+      complementari,
     };
 
     const nextPrograms = [program, ...programs];
@@ -267,7 +525,7 @@ const Programmazioni = ({ userId, prMaxes }) => {
     setPrograms(nextPrograms);
     setPageError('');
     if (expandedProgramId === program.id) setExpandedProgramId(null);
-    if (editingNotesProgramId === program.id) handleCancelNoteEdit();
+    if (editingProgramId === program.id) handleCancelProgramEdit();
   };
 
   const toggleWeek = (programId, weekNumber) => {
@@ -275,43 +533,205 @@ const Programmazioni = ({ userId, prMaxes }) => {
     setOpenWeeks((previous) => ({ ...previous, [key]: !previous[key] }));
   };
 
-  const handleStartNoteEdit = (program) => {
+  const toggleAccessories = (programId) => {
+    setOpenAccessories((previous) => ({
+      ...previous,
+      [programId]: !previous[programId],
+    }));
+  };
+
+  const toggleAccessoryDay = (programId, dayNumber) => {
+    const key = `${programId}:${dayNumber}`;
+    setOpenAccessoryDays((previous) => ({ ...previous, [key]: !previous[key] }));
+  };
+
+  const handleStartProgramEdit = (program) => {
+    const complementariDraft = prepareComplementariForEdit(program.complementari);
+
     setExpandedProgramId(program.id);
-    setEditingNotesProgramId(program.id);
-    setNoteDraft(buildNotesDraft(program));
-    setNoteEditError('');
+    setEditingProgramId(program.id);
+    setAccessoryDraft(complementariDraft);
+    setNoteDraft(buildNotesDraft(program, complementariDraft));
+    setProgramEditError('');
+    setOpenAccessories((previous) => ({ ...previous, [program.id]: true }));
+    setIsAddAccessoryDayOpen(false);
+    setAccessoryDayForm(makeEmptyAccessoryDayForm());
+    setAccessoryDayError('');
+    setAddAccessoryExerciseDay(null);
+    setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
+    setAccessoryExerciseError('');
   };
 
-  const handleCancelNoteEdit = () => {
-    setEditingNotesProgramId(null);
+  const handleCancelProgramEdit = () => {
+    setEditingProgramId(null);
     setNoteDraft({});
-    setNoteEditError('');
+    setProgramEditError('');
+    setAccessoryDraft([]);
+    setIsAddAccessoryDayOpen(false);
+    setAccessoryDayForm(makeEmptyAccessoryDayForm());
+    setAccessoryDayError('');
+    setAddAccessoryExerciseDay(null);
+    setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
+    setAccessoryExerciseError('');
   };
 
-  const handleSaveNotes = () => {
-    const program = programs.find((item) => item.id === editingNotesProgramId);
+  const handleSaveProgramEdit = () => {
+    const program = programs.find((item) => item.id === editingProgramId);
     if (!program) {
-      handleCancelNoteEdit();
+      handleCancelProgramEdit();
       return;
     }
 
-    const updatedProgram = applyNotesDraft(program, noteDraft);
+    const updatedProgram = applyProgramEdit(program, noteDraft, accessoryDraft);
     const nextPrograms = programs.map((item) =>
       (item.id === updatedProgram.id ? updatedProgram : item)
     );
 
     if (!persistPrograms(userId, nextPrograms)) {
-      setNoteEditError('Salvataggio non riuscito: controlla lo spazio disponibile sul dispositivo.');
+      setProgramEditError('Salvataggio non riuscito: controlla lo spazio disponibile sul dispositivo.');
       return;
     }
 
     setPrograms(nextPrograms);
     setPageError('');
-    handleCancelNoteEdit();
+    handleCancelProgramEdit();
   };
 
   const handleNoteChange = (key, value) => {
     setNoteDraft((previous) => ({ ...previous, [key]: value }));
+  };
+
+  const handleAccessoryExerciseChange = (field, value) => {
+    setAccessoryExerciseForm((previous) => ({ ...previous, [field]: value }));
+    setAccessoryExerciseError('');
+  };
+
+  const handleOpenAddAccessoryDay = () => {
+    setAccessoryDayForm(makeEmptyAccessoryDayForm());
+    setAccessoryDayError('');
+    setIsAddAccessoryDayOpen(true);
+  };
+
+  const handleCloseAddAccessoryDay = () => {
+    setIsAddAccessoryDayOpen(false);
+    setAccessoryDayError('');
+  };
+
+  const handleAddAccessoryDay = (event) => {
+    event.preventDefault();
+    const name = accessoryDayForm.name.trim();
+
+    if (!name) {
+      setAccessoryDayError('Inserisci il nome del giorno complementari.');
+      return;
+    }
+
+    if (!editingProgramId) return;
+
+    const nextDay = accessoryDraft.reduce(
+      (max, day) => Math.max(max, Number(day.day) || 0),
+      0
+    ) + 1;
+
+    setAccessoryDraft((previous) => [
+      ...previous,
+      {
+        day: nextDay,
+        name,
+        weekday: accessoryDayForm.weekday,
+        exercises: [],
+      },
+    ]);
+    setOpenAccessoryDays((previous) => ({
+      ...previous,
+      [`${editingProgramId}:${nextDay}`]: true,
+    }));
+    setAccessoryDayForm(makeEmptyAccessoryDayForm());
+    setAccessoryDayError('');
+    setIsAddAccessoryDayOpen(false);
+  };
+
+  const handleToggleAddAccessoryExercise = (dayNumber) => {
+    if (addAccessoryExerciseDay === dayNumber) {
+      setAddAccessoryExerciseDay(null);
+      setAccessoryExerciseError('');
+      return;
+    }
+
+    setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
+    setAccessoryExerciseError('');
+    setAddAccessoryExerciseDay(dayNumber);
+  };
+
+  const handleCancelAddAccessoryExercise = () => {
+    setAddAccessoryExerciseDay(null);
+    setAccessoryExerciseError('');
+  };
+
+  const handleAddAccessoryExercise = (event, dayNumber) => {
+    event.preventDefault();
+    const name = accessoryExerciseForm.name.trim();
+    const series = accessoryExerciseForm.series.trim();
+    const reps = accessoryExerciseForm.reps.trim();
+
+    if (!Number.isFinite(dayNumber) || dayNumber <= 0) {
+      setAccessoryExerciseError('Giorno non valido: riprova.');
+      return;
+    }
+
+    if (!name) {
+      setAccessoryExerciseError("Inserisci il nome dell'esercizio.");
+      return;
+    }
+
+    if (!series) {
+      setAccessoryExerciseError('Indica le serie: puoi scrivere 3 + 4 oppure 3x4 + 4x2.');
+      return;
+    }
+
+    const blocks = buildAccessoryBlocks(series, reps);
+    if (!blocks.length) {
+      setAccessoryExerciseError(
+        'Serie e rep non sono valide. Usa ad esempio 3x4 + 4x2 oppure 3 + 4 e 4 + 2.'
+      );
+      return;
+    }
+
+    const targetDay = accessoryDraft.find((day) => Number(day.day) === dayNumber);
+    if (!targetDay) {
+      setAccessoryExerciseError('Giorno non trovato: riprova.');
+      return;
+    }
+
+    const exerciseIndex = (targetDay.exercises || []).length;
+    const newExercise = {
+      name,
+      blocks,
+      notes: accessoryExerciseForm.notes.trim(),
+    };
+
+    setAccessoryDraft((previous) =>
+      previous.map((day) =>
+        Number(day.day) === dayNumber
+          ? { ...day, exercises: [...(day.exercises || []), newExercise] }
+          : day
+      )
+    );
+    setNoteDraft((previous) => ({
+      ...previous,
+      [accessoryNoteKeyFor(dayNumber, exerciseIndex)]: newExercise.notes,
+    }));
+
+    if (editingProgramId) {
+      setOpenAccessoryDays((previous) => ({
+        ...previous,
+        [`${editingProgramId}:${dayNumber}`]: true,
+      }));
+    }
+
+    setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
+    setAccessoryExerciseError('');
+    setAddAccessoryExerciseDay(null);
   };
 
   const handleToggleWorkoutCompleted = (programId, weekNumber, dayNumber) => {
@@ -326,9 +746,34 @@ const Programmazioni = ({ userId, prMaxes }) => {
     }
   };
 
+  const handleChangeLiftVariant = (
+    programId,
+    weekNumber,
+    dayNumber,
+    liftIndex,
+    variant
+  ) => {
+    const nextPrograms = updateLiftVariant(
+      programs,
+      programId,
+      weekNumber,
+      dayNumber,
+      liftIndex,
+      variant
+    );
+
+    if (!persistPrograms(userId, nextPrograms)) {
+      setPageError('Salvataggio non riuscito: riprova.');
+      return;
+    }
+
+    setPrograms(nextPrograms);
+    setPageError('');
+  };
+
   const renderProgramCard = (program) => {
     const isExpanded = expandedProgramId === program.id;
-    const isEditingNotes = editingNotesProgramId === program.id;
+    const isEditingNotes = editingProgramId === program.id;
     const isEndingSoon = isProgramEndingSoon(program);
 
     const hasMissingPr = program.usePrMax && program.weeks.some((week) =>
@@ -344,6 +789,28 @@ const Programmazioni = ({ userId, prMaxes }) => {
       ?? new Set(program.weeks.flatMap((week) =>
         week.sessions.flatMap((session) => session.lifts.map((lift) => lift.key))
       )).size;
+
+    const complementariSource = isEditingNotes ? accessoryDraft : program.complementari;
+    const complementari = (Array.isArray(complementariSource) ? complementariSource : [])
+      .filter((day) => day && Array.isArray(day.exercises))
+      .map((day) => ({
+        ...day,
+        name: typeof day.name === 'string' ? day.name : '',
+        exercises: day.exercises
+          .map((exercise, exerciseIndex) => ({
+            exercise: upgradeAccessoryExercise(exercise),
+            exerciseIndex,
+          }))
+          .filter(({ exercise }) => exercise && !isFundamentalAccessory(exercise)),
+      }))
+      .filter((day) => isEditingNotes || day.exercises.length > 0);
+    const showAccessories = isEditingNotes || complementari.length > 0;
+    const isAccessoriesOpen = Boolean(openAccessories[program.id]);
+    const accessoriesContentId = `accessories-${program.id}`;
+    const accessoryExercisePreview = buildAccessoryBlocks(
+      accessoryExerciseForm.series,
+      accessoryExerciseForm.reps
+    );
 
     return (
       <div className={`program-card ${isExpanded ? 'expanded' : ''}`} key={program.id}>
@@ -381,13 +848,13 @@ const Programmazioni = ({ userId, prMaxes }) => {
             className={`program-edit-btn${isEditingNotes ? ' active' : ''}`}
             onClick={(event) => {
               event.stopPropagation();
-              if (isEditingNotes) handleCancelNoteEdit();
-              else handleStartNoteEdit(program);
+              if (isEditingNotes) handleCancelProgramEdit();
+              else handleStartProgramEdit(program);
             }}
             onKeyDown={(event) => event.stopPropagation()}
-            aria-label={isEditingNotes ? `Termina modifica note di ${program.name}` : `Modifica note di ${program.name}`}
+            aria-label={isEditingNotes ? `Termina modifica programmazione di ${program.name}` : `Modifica programmazione di ${program.name}`}
             aria-pressed={isEditingNotes}
-            title={isEditingNotes ? 'Termina modifica note' : 'Modifica note'}
+            title={isEditingNotes ? 'Termina modifica programmazione' : 'Modifica programmazione'}
           >
             <Pencil size={17} />
           </button>
@@ -416,30 +883,30 @@ const Programmazioni = ({ userId, prMaxes }) => {
             {isEditingNotes && (
               <div className="program-note-edit-bar">
                 <span className="program-note-edit-title">
-                  Modifica note: apri una Week per intervenire sulle singole alzate.
+                  Modifica le informazioni dei complementari e le note dei fondamentali
                 </span>
                 <div className="program-note-edit-actions">
                   <button
                     type="button"
                     className="program-btn-secondary program-btn-small"
-                    onClick={handleCancelNoteEdit}
+                    onClick={handleCancelProgramEdit}
                   >
                     Annulla
                   </button>
                   <button
                     type="button"
                     className="program-btn-primary program-btn-small"
-                    onClick={handleSaveNotes}
+                    onClick={handleSaveProgramEdit}
                   >
-                    Salva note
+                    Salva le modifiche
                   </button>
                 </div>
               </div>
             )}
 
-            {noteEditError && (
+            {isEditingNotes && programEditError && (
               <p className="program-error" role="alert">
-                {noteEditError}
+                {programEditError}
               </p>
             )}
 
@@ -504,6 +971,15 @@ const Programmazioni = ({ userId, prMaxes }) => {
                           isEditingNotes={isEditingNotes}
                           noteDraft={noteDraft}
                           onNoteChange={handleNoteChange}
+                          onVariantChange={(liftIndex, variant) =>
+                            handleChangeLiftVariant(
+                              program.id,
+                              week.week,
+                              session.day,
+                              liftIndex,
+                              variant
+                            )
+                          }
                           onToggleCompleted={() => handleToggleWorkoutCompleted(
                             program.id,
                             week.week,
@@ -516,6 +992,271 @@ const Programmazioni = ({ userId, prMaxes }) => {
                 </div>
               );
             })}
+
+            {showAccessories && (
+              <div className="program-accessories">
+                <button
+                  type="button"
+                  className={`program-week-toggle${isAccessoriesOpen ? ' open' : ''}`}
+                  onClick={() => toggleAccessories(program.id)}
+                  aria-expanded={isAccessoriesOpen}
+                  aria-controls={accessoriesContentId}
+                >
+                  <span className="program-week-title">Complementari</span>
+                  <span className="program-week-meta">{complementari.length} giorni</span>
+                  <span className="program-week-chevron" aria-hidden="true">
+                    {isAccessoriesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                  </span>
+                </button>
+
+                {isAccessoriesOpen && (
+                  <div className="program-accessories-content" id={accessoriesContentId}>
+                    {isEditingNotes && (
+                      <button
+                        type="button"
+                        className="program-accessory-add-tile"
+                        onClick={handleOpenAddAccessoryDay}
+                        aria-haspopup="dialog"
+                      >
+                        <span className="program-accessory-add-circle" aria-hidden="true">
+                          <Plus size={20} />
+                        </span>
+                        <span className="program-accessory-add-label">Aggiungi giorno</span>
+                      </button>
+                    )}
+
+                    {isEditingNotes && complementari.length === 0 && (
+                      <p className="program-hint">
+                        Aggiungi prima un giorno complementari, poi potrai inserire gli esercizi.
+                      </p>
+                    )}
+
+                    {complementari.map((day) => {
+                      const dayKey = `${program.id}:${day.day}`;
+                      const isDayOpen = Boolean(openAccessoryDays[dayKey]);
+                      const dayContentId = `accessories-${program.id}-${day.day}`;
+                      const exercises = day.exercises || [];
+
+                      return (
+                        <div className="program-accessory-day" key={dayKey}>
+                          <button
+                            type="button"
+                            className={`program-week-toggle program-accessory-day-toggle${isDayOpen ? ' open' : ''}`}
+                            onClick={() => toggleAccessoryDay(program.id, day.day)}
+                            aria-expanded={isDayOpen}
+                            aria-controls={dayContentId}
+                          >
+                            <span className="program-accessory-day-title">
+                              {day.name || `Day ${day.day}`}
+                            </span>
+                            {day.name && day.name !== `Day ${day.day}` && (
+                              <span className="program-accessory-day-order">Day {day.day}</span>
+                            )}
+                            {day.weekday && (
+                              <span className="program-day-weekday">{day.weekday}</span>
+                            )}
+                            <span className="program-week-meta">
+                              {exercises.length} esercizi
+                            </span>
+                            <span className="program-week-chevron" aria-hidden="true">
+                              {isDayOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </span>
+                          </button>
+
+                          {isDayOpen && (
+                            <div className="program-accessory-list" id={dayContentId}>
+                              {isEditingNotes && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="program-accessory-add-tile"
+                                    onClick={() => handleToggleAddAccessoryExercise(day.day)}
+                                    aria-expanded={addAccessoryExerciseDay === day.day}
+                                  >
+                                    <span className="program-accessory-add-circle" aria-hidden="true">
+                                      <Plus size={20} />
+                                    </span>
+                                    <span className="program-accessory-add-label">
+                                      Aggiungi complementare
+                                    </span>
+                                  </button>
+
+                                  {addAccessoryExerciseDay === day.day && (
+                                    <form
+                                      className="program-accessory-add-card"
+                                      id={`${dayContentId}-add-exercise`}
+                                      onSubmit={(event) => handleAddAccessoryExercise(event, day.day)}
+                                      noValidate
+                                    >
+                                      <div className="program-accessory-form-grid">
+                                        <label className="program-field program-field-full">
+                                          <span className="program-label">Nome esercizio</span>
+                                          <input
+                                            className="program-input"
+                                            type="text"
+                                            value={accessoryExerciseForm.name}
+                                            onChange={(event) =>
+                                              handleAccessoryExerciseChange('name', event.target.value)
+                                            }
+                                            placeholder="Es. Leg curl"
+                                            maxLength={60}
+                                          />
+                                        </label>
+
+                                        <label className="program-field">
+                                          <span className="program-label">Serie</span>
+                                          <input
+                                            className="program-input"
+                                            type="text"
+                                            value={accessoryExerciseForm.series}
+                                            onChange={(event) =>
+                                              handleAccessoryExerciseChange('series', event.target.value)
+                                            }
+                                            placeholder="3 + 4 oppure 3x4 + 4x2"
+                                            maxLength={80}
+                                            aria-label="Serie"
+                                          />
+                                          <span className="program-hint program-accessory-field-hint">
+                                            Scrivi 3 + 4, oppure l&apos;intera prescrizione 3x4 + 4x2.
+                                          </span>
+                                        </label>
+
+                                        <label className="program-field">
+                                          <span className="program-label">Rep</span>
+                                          <input
+                                            className="program-input"
+                                            type="text"
+                                            value={accessoryExerciseForm.reps}
+                                            onChange={(event) =>
+                                              handleAccessoryExerciseChange('reps', event.target.value)
+                                            }
+                                            placeholder="4 + 2"
+                                            maxLength={80}
+                                            aria-label="Rep"
+                                          />
+                                          <span className="program-hint program-accessory-field-hint">
+                                            Una voce per ogni blocco di serie.
+                                          </span>
+                                        </label>
+
+                                        <label className="program-field program-field-full">
+                                          <span className="program-label">Note</span>
+                                          <input
+                                            className="program-input"
+                                            type="text"
+                                            value={accessoryExerciseForm.notes}
+                                            onChange={(event) =>
+                                              handleAccessoryExerciseChange('notes', event.target.value)
+                                            }
+                                            placeholder="Es. fermo 1 secondo"
+                                            maxLength={200}
+                                          />
+                                        </label>
+                                      </div>
+
+                                      {accessoryExercisePreview.length > 0 && (
+                                        <div className="program-accessory-add-preview">
+                                          <span className="program-label">Anteprima</span>
+                                          <div className="program-lift">
+                                            <div className="program-lift-head">
+                                              <span className="program-lift-name program-lift-name-accessory">
+                                                {accessoryExerciseForm.name.trim() || 'Nuovo complementare'}
+                                              </span>
+                                              <ProgramBlocks
+                                                blocks={accessoryExercisePreview}
+                                                accessory
+                                              />
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+
+                                      {accessoryExerciseError && (
+                                        <p className="program-error" role="alert">
+                                          {accessoryExerciseError}
+                                        </p>
+                                      )}
+
+                                      <div className="program-accessory-add-actions">
+                                        <button
+                                          type="button"
+                                          className="program-btn-secondary program-btn-small"
+                                          onClick={handleCancelAddAccessoryExercise}
+                                        >
+                                          Annulla
+                                        </button>
+                                        <button
+                                          type="submit"
+                                          className="program-btn-primary program-btn-small"
+                                        >
+                                          Aggiungi complementare
+                                        </button>
+                                      </div>
+                                    </form>
+                                  )}
+                                </>
+                              )}
+
+                              {exercises.length === 0 && (
+                                <p className="program-hint program-accessory-empty">
+                                  {isEditingNotes
+                                    ? 'Nessun complementare: usa il riquadro rosso “Aggiungi complementare” qui sopra.'
+                                    : 'Nessun complementare per questo giorno.'}
+                                </p>
+                              )}
+                              {exercises.map(({ exercise, exerciseIndex }) => {
+                                const noteKey = accessoryNoteKeyFor(day.day, exerciseIndex);
+                                const blocks = Array.isArray(exercise.blocks) && exercise.blocks.length
+                                  ? exercise.blocks
+                                  : (exercise.sets || exercise.reps)
+                                    ? [{
+                                        sets: exercise.sets,
+                                        reps: exercise.reps,
+                                        rpe: null,
+                                        percent: null,
+                                        percentBase: null,
+                                        note: '',
+                                      }]
+                                    : [];
+
+                                return (
+                                  <div
+                                    className="program-lift"
+                                    key={`${dayKey}-${exerciseIndex}`}
+                                  >
+                                    <div className="program-lift-head">
+                                      <span className="program-lift-name program-lift-name-accessory">
+                                        {exercise.name}
+                                      </span>
+                                      <ProgramBlocks blocks={blocks} accessory />
+                                    </div>
+                                    {isEditingNotes ? (
+                                      <textarea
+                                        className="program-note-input"
+                                        rows={2}
+                                        value={noteDraft[noteKey] ?? ''}
+                                        onChange={(event) => handleNoteChange(noteKey, event.target.value)}
+                                        placeholder="Aggiungi una nota"
+                                        aria-label={`Nota ${exercise.name}, Day ${day.day}`}
+                                        maxLength={300}
+                                      />
+                                    ) : (
+                                      exercise.notes && (
+                                        <div className="program-lift-notes">{exercise.notes}</div>
+                                      )
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -642,6 +1383,160 @@ const Programmazioni = ({ userId, prMaxes }) => {
                 </div>
               </div>
 
+              <div className="program-toggle-row">
+                <label className="toggle-switch">
+                  <input
+                    id="program-include-complementari"
+                    type="checkbox"
+                    checked={form.includeComplementari}
+                    onChange={(event) =>
+                      setForm((previous) => ({
+                        ...previous,
+                        includeComplementari: event.target.checked,
+                      }))
+                    }
+                  />
+                  <span className="toggle-slider" />
+                </label>
+                <div className="program-toggle-text">
+                  <label className="program-toggle-label" htmlFor="program-include-complementari">
+                    Includi anche i complementari
+                  </label>
+                  <span className="program-toggle-desc">
+                    Se attivo, recupera anche i complementari che ha scritto Marco.
+                    <br />
+                    Se disattivo, è possibile inserirli custom.
+                  </span>
+                </div>
+              </div>
+
+              {!form.includeComplementari && (
+                <div className="program-custom-complementari">
+                  <div className="program-custom-complementari-head">
+                    <span className="program-attach-title">Complementari custom</span>
+                    <span className="program-hint">Aggiungi gli esercizi per ogni Day.</span>
+                  </div>
+
+                  {customComplementari.map((day) => (
+                    <div className="program-custom-day" key={day.day}>
+                      <div className="program-custom-day-head">
+                        <span className="program-custom-day-title">Day {day.day}</span>
+                        <button
+                          type="button"
+                          className="program-custom-add"
+                          onClick={() => handleAddCustomAccessory(day.day)}
+                        >
+                          <Plus size={14} /> Aggiungi
+                        </button>
+                      </div>
+
+                      {day.exercises.length === 0 ? (
+                        <p className="program-hint">Nessun complementare per questo Day.</p>
+                      ) : (
+                        <div className="program-custom-list">
+                          {day.exercises.map((exercise, exerciseIndex) => (
+                            <div className="program-custom-item" key={exercise.id}>
+                              <div className="program-custom-item-head">
+                                <span className="program-custom-item-number">
+                                  Esercizio {exerciseIndex + 1}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="program-custom-remove"
+                                  onClick={() =>
+                                    handleRemoveCustomAccessory(day.day, exercise.id)
+                                  }
+                                  aria-label={`Rimuovi esercizio ${exerciseIndex + 1} del Day ${day.day}`}
+                                  title="Rimuovi esercizio"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+
+                              <div className="program-custom-grid">
+                                <label className="program-field program-custom-name">
+                                  <span className="program-label">Nome</span>
+                                  <input
+                                    className="program-input"
+                                    type="text"
+                                    value={exercise.name}
+                                    onChange={(event) =>
+                                      handleChangeCustomAccessory(
+                                        day.day,
+                                        exercise.id,
+                                        'name',
+                                        event.target.value
+                                      )
+                                    }
+                                    placeholder="Es. Lat machine"
+                                    maxLength={80}
+                                  />
+                                </label>
+                                <label className="program-field">
+                                  <span className="program-label">Serie</span>
+                                  <input
+                                    className="program-input"
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={exercise.sets}
+                                    onChange={(event) =>
+                                      handleChangeCustomAccessory(
+                                        day.day,
+                                        exercise.id,
+                                        'sets',
+                                        event.target.value
+                                      )
+                                    }
+                                    placeholder="3"
+                                    maxLength={12}
+                                  />
+                                </label>
+                                <label className="program-field">
+                                  <span className="program-label">Rep</span>
+                                  <input
+                                    className="program-input"
+                                    type="text"
+                                    value={exercise.reps}
+                                    onChange={(event) =>
+                                      handleChangeCustomAccessory(
+                                        day.day,
+                                        exercise.id,
+                                        'reps',
+                                        event.target.value
+                                      )
+                                    }
+                                    placeholder="12/15"
+                                    maxLength={20}
+                                  />
+                                </label>
+                                <label className="program-field program-custom-notes">
+                                  <span className="program-label">Note</span>
+                                  <input
+                                    className="program-input"
+                                    type="text"
+                                    value={exercise.notes}
+                                    onChange={(event) =>
+                                      handleChangeCustomAccessory(
+                                        day.day,
+                                        exercise.id,
+                                        'notes',
+                                        event.target.value
+                                      )
+                                    }
+                                    placeholder="Es. fermo 1”"
+                                    maxLength={200}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="program-attach">
                 <div className="program-attach-header">
                   <span className="program-attach-title">Allega</span>
@@ -670,8 +1565,8 @@ const Programmazioni = ({ userId, prMaxes }) => {
                 )}
 
                 <p className="program-hint">
-                  Formati supportati: .xls e .xlsx (max 5 MB). I complementari e i recuperi vengono
-                  ignorati.
+                  Formati supportati: .xls e .xlsx (max 5 MB). I complementari vengono letti dalla
+                  sezione con i giorni; Squat, Panca e Stacco vengono esclusi.
                 </p>
 
                 {isParsing && <p className="program-hint">Lettura della scheda in corso...</p>}
@@ -691,6 +1586,9 @@ const Programmazioni = ({ userId, prMaxes }) => {
                       <span>{parsedSchedule.stats.weeks} settimane</span>
                       <span>{parsedSchedule.stats.sessions} sedute</span>
                       <span>{parsedSchedule.stats.lifts} alzate</span>
+                      {parsedSchedule.stats.complementari > 0 && (
+                        <span>{parsedSchedule.stats.complementari} complementari</span>
+                      )}
                     </div>
                     <div className="program-preview-maxes">{formatMaxes(parsedSchedule.maxes)}</div>
 
@@ -698,6 +1596,13 @@ const Programmazioni = ({ userId, prMaxes }) => {
                       <p className="program-preview-warning">
                         <AlertCircle size={14} /> La scheda contiene {parsedSchedule.stats.weeks} settimane,
                         mentre la durata indicata è {form.durationWeeks || '0'}. Puoi salvare comunque.
+                      </p>
+                    )}
+
+                    {parsedSchedule.stats.complementari > 0 && !form.includeComplementari && (
+                      <p className="program-preview-warning">
+                        <AlertCircle size={14} /> I complementari della scheda non saranno inclusi:
+                        stai usando quelli custom.
                       </p>
                     )}
                   </div>
@@ -736,6 +1641,90 @@ const Programmazioni = ({ userId, prMaxes }) => {
           Le programmazioni sono salvate solo su questo dispositivo.
         </p>
       </div>
+
+      {isAddAccessoryDayOpen && (
+        <div
+          className="program-modal-backdrop"
+          role="presentation"
+          onClick={handleCloseAddAccessoryDay}
+        >
+          <div
+            className="program-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="add-accessory-day-title"
+            onClick={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') handleCloseAddAccessoryDay();
+            }}
+          >
+            <h2 className="program-modal-title" id="add-accessory-day-title">
+              Aggiungi giorno complementari
+            </h2>
+            <form className="program-modal-form" onSubmit={handleAddAccessoryDay} noValidate>
+              <label className="program-field">
+                <span className="program-label">Nome giorno</span>
+                <input
+                  className="program-input"
+                  type="text"
+                  value={accessoryDayForm.name}
+                  onChange={(event) => {
+                    setAccessoryDayForm((previous) => ({
+                      ...previous,
+                      name: event.target.value,
+                    }));
+                    setAccessoryDayError('');
+                  }}
+                  placeholder="Es. Upper"
+                  maxLength={60}
+                  autoFocus
+                />
+              </label>
+
+              <label className="program-field">
+                <span className="program-label">Giorno della settimana</span>
+                <select
+                  className="program-input"
+                  value={accessoryDayForm.weekday}
+                  onChange={(event) => {
+                    setAccessoryDayForm((previous) => ({
+                      ...previous,
+                      weekday: event.target.value,
+                    }));
+                    setAccessoryDayError('');
+                  }}
+                >
+                  <option value="">Seleziona giorno</option>
+                  {WEEKDAY_OPTIONS.map((weekday) => (
+                    <option value={weekday} key={weekday}>
+                      {weekday}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {accessoryDayError && (
+                <p className="program-error" role="alert">
+                  {accessoryDayError}
+                </p>
+              )}
+
+              <div className="program-modal-actions">
+                <button
+                  type="button"
+                  className="program-btn-secondary program-btn-small"
+                  onClick={handleCloseAddAccessoryDay}
+                >
+                  Annulla
+                </button>
+                <button type="submit" className="program-btn-primary program-btn-small">
+                  Aggiungi giorno
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
