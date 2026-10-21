@@ -1,17 +1,21 @@
 .programmazioni-container {
   width: 100%;
   max-width: 500px;
+  padding-top: 20px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 .programmazioni-title {
   margin: 0 0 4px 0;
   color: #ff4136;
+  font-family: Arial, sans-serif;
   font-size: 36px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  font-weight: bold;
+  line-height: 1.5;
+  letter-spacing: normal;
   text-align: center;
 }
 
@@ -747,6 +751,44 @@ input[type='date'].program-input {
   color: #7bd88f;
 }
 
+.program-day-completion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  color: #5a5a5a;
+  cursor: pointer;
+  transition: color 0.2s, transform 0.15s;
+}
+
+.program-day-completion:hover {
+  color: #8a8a8a;
+}
+
+.program-day-completion.completed {
+  color: #7bd88f;
+}
+
+.program-day-completion.completed:hover {
+  color: #9be7a8;
+}
+
+.program-day-completion:active {
+  transform: scale(0.92);
+}
+
+.program-day-completion:focus-visible {
+  outline: 2px solid #7bd88f;
+  outline-offset: 1px;
+}
+
 .program-lift {
   display: flex;
   flex-direction: column;
@@ -876,10 +918,6 @@ input[type='date'].program-input {
 }
 
 @media (max-width: 420px) {
-  .programmazioni-title {
-    font-size: 28px;
-  }
-
   .program-form-actions {
     justify-content: stretch;
   }

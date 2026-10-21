@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Circle } from 'lucide-react';
 import './Programmazioni.css';
 import {
   compareLifts,
@@ -23,20 +23,39 @@ const ProgramDay = ({
   isEditingNotes = false,
   noteDraft = {},
   onNoteChange = () => {},
+  onToggleCompleted,
 }) => (
   <div className="program-day">
     <div className="program-day-title">
       <span className="program-day-title-text">{title || `Day ${sessionIndex + 1}`}</span>
       {session.weekday && <span className="program-day-weekday">{session.weekday}</span>}
-      {completed && (
-        <span
-          className="program-day-completed"
-          role="img"
-          aria-label="Allenamento completato"
-          title="Allenamento completato"
+      {onToggleCompleted ? (
+        <button
+          type="button"
+          className={`program-day-completion${completed ? ' completed' : ''}`}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleCompleted();
+          }}
+          aria-label={completed ? 'Segna come non completato' : 'Segna come completato'}
+          aria-pressed={completed}
+          title={completed ? 'Segna come non completato' : 'Segna come completato'}
         >
-          <CheckCircle2 size={17} aria-hidden="true" />
-        </span>
+          {completed
+            ? <CheckCircle2 size={20} aria-hidden="true" />
+            : <Circle size={20} aria-hidden="true" />}
+        </button>
+      ) : (
+        completed && (
+          <span
+            className="program-day-completed"
+            role="img"
+            aria-label="Allenamento completato"
+            title="Allenamento completato"
+          >
+            <CheckCircle2 size={17} aria-hidden="true" />
+          </span>
+        )
       )}
     </div>
 
@@ -140,6 +159,7 @@ ProgramDay.propTypes = {
   isEditingNotes: PropTypes.bool,
   noteDraft: PropTypes.object,
   onNoteChange: PropTypes.func,
+  onToggleCompleted: PropTypes.func,
 };
 
 export default ProgramDay;

@@ -24,6 +24,7 @@ import {
   isProgramEndingSoon,
   loadCompletions,
   loadPrograms,
+  persistCompletions,
   persistPrograms,
   todayIso,
   workoutKey,
@@ -313,6 +314,18 @@ const Programmazioni = ({ userId, prMaxes }) => {
     setNoteDraft((previous) => ({ ...previous, [key]: value }));
   };
 
+  const handleToggleWorkoutCompleted = (programId, weekNumber, dayNumber) => {
+    const key = workoutKey(programId, weekNumber, dayNumber);
+    const nextCompletions = { ...completions };
+
+    if (nextCompletions[key]) delete nextCompletions[key];
+    else nextCompletions[key] = new Date().toISOString();
+
+    if (persistCompletions(userId, nextCompletions)) {
+      setCompletions(nextCompletions);
+    }
+  };
+
   const renderProgramCard = (program) => {
     const isExpanded = expandedProgramId === program.id;
     const isEditingNotes = editingNotesProgramId === program.id;
@@ -491,6 +504,11 @@ const Programmazioni = ({ userId, prMaxes }) => {
                           isEditingNotes={isEditingNotes}
                           noteDraft={noteDraft}
                           onNoteChange={handleNoteChange}
+                          onToggleCompleted={() => handleToggleWorkoutCompleted(
+                            program.id,
+                            week.week,
+                            session.day
+                          )}
                         />
                       ))}
                     </div>
