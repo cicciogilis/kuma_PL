@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import './Programmazioni.css';
 import ProgramBlocks from './ProgramBlocks';
+import ProgramDashboard from './ProgramDashboard';
 import ProgramDay from './ProgramDay';
 import ProgramEndingWarning from './ProgramEndingWarning';
 import {
@@ -909,6 +910,12 @@ const Programmazioni = ({ userId, prMaxes }) => {
                 {programEditError}
               </p>
             )}
+
+            <ProgramDashboard
+              program={program}
+              prMaxes={prMaxes}
+              completions={completions}
+            />
 
             <div className="program-card-summary">
               <span>
