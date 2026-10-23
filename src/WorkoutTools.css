@@ -476,15 +476,27 @@
 }
 
 .wt-barbell-block {
+  position: relative;
   width: 11px;
   height: 25px;
   flex: 0 0 11px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  margin: 0 2px 0 4px;
+  border: 1px solid rgba(255, 255, 255, 0.38);
   border-radius: 3px;
-  background: linear-gradient(180deg, #5a5a5a 0%, #303030 100%);
+  background: linear-gradient(180deg, #7c7c7c 0%, #4e4e4e 46%, #2b2b2b 100%);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.16),
-    0 3px 6px rgba(0, 0, 0, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.4),
+    0 3px 6px rgba(0, 0, 0, 0.5);
+}
+
+.wt-barbell-block::after {
+  position: absolute;
+  inset: 6px 2px;
+  border: 1px solid rgba(0, 0, 0, 0.32);
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  content: '';
 }
 
 .wt-plate-stack {
@@ -1106,6 +1118,11 @@
     width: 10px;
     height: 9px;
     flex-basis: 10px;
+  }
+
+  .wt-barbell-block {
+    margin-right: 2px;
+    margin-left: 3px;
   }
 
   .wt-set-count strong {
