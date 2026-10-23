@@ -87,3 +87,13 @@ test('la Cambered & Bow Bar da 25 kg usa il peso corretto', () => {
   assert.equal(load.loadedTotal, 115);
   assert.equal(load.exact, true);
 });
+
+test('110 kg con bilanciere 20 kg e due blocchi da 2,5 kg usa 25 + 15 + 2,5', () => {
+  const load = calculatePlateLoad(110, { barWeight: 25 });
+
+  assert.equal(load.barWeight, 25);
+  assert.equal(load.perSide, 42.5);
+  assert.deepEqual(load.plates.map((plate) => plate.weight), [25, 15, 2.5]);
+  assert.equal(load.loadedTotal, 110);
+  assert.equal(load.exact, true);
+});

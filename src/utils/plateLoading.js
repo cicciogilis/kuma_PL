@@ -44,7 +44,7 @@ export const COMPETITION_PLATES = [
   {
     weight: 2.5,
     label: '2,5',
-    color: '#fb7185',
+    color: '#1a1a1a',
     textColor: '#fff',
     height: 58,
     width: 16,

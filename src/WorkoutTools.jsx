@@ -29,16 +29,18 @@ const TIMER_PRESETS = [1, 2, 3, 4, 5];
 const QUICK_PERCENTAGES = [50, 60, 70, 75, 80, 85, 90, 95];
 const SET_NUMBERS = Array.from({ length: 10 }, (_, index) => index + 1);
 const BAR_TYPES = [
-  { id: 'bilanciere', label: 'Bilanciere 20 kg', weight: BAR_WEIGHT },
-  { id: 'safety', label: 'Safety Bar 29 kg', weight: 29 },
-  { id: 'cambered', label: 'Cambered & Bow Bar 25 kg', weight: 25 },
+  { id: 'bilanciere', label: 'Bilanciere | 20 kg', weight: BAR_WEIGHT },
+  { id: 'safety', label: 'Safety Bar | 29 kg', weight: 29 },
+  { id: 'cambered', label: 'Cambered & Bow Bar | 25 kg', weight: 25 },
 ];
+const BLOCKS_TOTAL_WEIGHT = 5;
 const RING_RADIUS = 52;
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 const STORAGE_KEYS = {
   plateWeight: 'kuma_workout_tools_plate_weight',
   barType: 'kuma_workout_tools_bar_type',
+  blocks: 'kuma_workout_tools_blocks',
   completedSets: 'kuma_workout_tools_completed_sets',
   clock: 'kuma_workout_tools_clock',
   calculator: 'kuma_workout_tools_calculator',
@@ -182,17 +184,26 @@ const PlateCalculator = () => {
     STORAGE_KEYS.barType,
     BAR_TYPES[0].id
   );
+  const [blocksEnabled, setBlocksEnabled] = usePersistentState(
+    STORAGE_KEYS.blocks,
+    false
+  );
   const selectedBar =
     BAR_TYPES.find((barType) => barType.id === barTypeId) || BAR_TYPES[0];
+  const effectiveBarWeight =
+    selectedBar.weight + (blocksEnabled ? BLOCKS_TOTAL_WEIGHT : 0);
   const load = useMemo(
-    () => calculatePlateLoad(weight, { barWeight: selectedBar.weight }),
-    [selectedBar.weight, weight]
+    () => calculatePlateLoad(weight, { barWeight: effectiveBarWeight }),
+    [effectiveBarWeight, weight]
   );
+  const blocksLabel = blocksEnabled
+    ? ' con blocchi da 2,5 kg per lato'
+    : '';
   const barbellLabel = load.error
-    ? 'Bilanciere senza dischi'
+    ? `Bilanciere senza dischi${blocksLabel}`
     : load.plates.length
-      ? `Dischi caricati: ${formatPlateList(load.plates)}`
-      : 'Solo bilanciere';
+      ? `Dischi caricati: ${formatPlateList(load.plates)}${blocksLabel}`
+      : `Solo bilanciere${blocksLabel}`;
 
   const adjustWeight = (delta) => {
     const current = Number(String(weight).replace(',', '.')) || 0;
@@ -207,19 +218,35 @@ const PlateCalculator = () => {
           <span className="wt-eyebrow">Carico bilanciere</span>
           <h3 id="wt-plate-title">Dischi</h3>
         </div>
-        <div className="wt-bar-picker">
-          <select
-            value={selectedBar.id}
-            onChange={(event) => setBarTypeId(event.target.value)}
-            aria-label="Tipo di bilanciere"
+        <div className="wt-plate-controls">
+          <div className="wt-bar-picker">
+            <select
+              value={selectedBar.id}
+              onChange={(event) => setBarTypeId(event.target.value)}
+              aria-label="Tipo di bilanciere"
+            >
+              {BAR_TYPES.map((barType) => (
+                <option key={barType.id} value={barType.id}>
+                  {barType.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown size={12} aria-hidden="true" />
+          </div>
+          <label
+            className="wt-blocks-toggle"
+            title="Aggiunge due blocchi da 2,5 kg (5 kg totali)"
           >
-            {BAR_TYPES.map((barType) => (
-              <option key={barType.id} value={barType.id}>
-                {barType.label}
-              </option>
-            ))}
-          </select>
-          <ChevronDown size={12} aria-hidden="true" />
+            <span>Blocchi</span>
+            <input
+              type="checkbox"
+              checked={blocksEnabled}
+              onChange={(event) => setBlocksEnabled(event.target.checked)}
+            />
+            <span className="wt-switch" aria-hidden="true">
+              <span className="wt-switch-thumb" />
+            </span>
+          </label>
         </div>
       </div>
 
@@ -264,6 +291,9 @@ const PlateCalculator = () => {
           <span className="wt-barbell-sleeve" />
         </div>
         <PlateStack plates={load.plates} />
+        {blocksEnabled && (
+          <span className="wt-barbell-block" aria-hidden="true" />
+        )}
         <span className="wt-barbell-tip" aria-hidden="true" />
       </div>
 
