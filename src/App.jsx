@@ -9,6 +9,7 @@ import LeaderboardWithSorting from './LeaderboardWithSorting';
 import Programmazioni from './Programmazioni';
 import ProgramDay from './ProgramDay';
 import ProgramEndingWarning from './ProgramEndingWarning';
+import WorkoutTools from './WorkoutTools';
 import {
   getNextWorkout,
   isProgramEndingSoon,
@@ -1202,61 +1203,54 @@ function App() {
 
         {isEndingSoon && <ProgramEndingWarning className="home-ending-warning" />}
 
-        <div className="next-workout-section">
-          <div className="next-workout-label">Il tuo prossimo allenamento è</div>
+        {activeProgram && (
+          <div className="next-workout-section">
+            <div className="next-workout-label">Il tuo prossimo allenamento è</div>
 
-          {scheduledWorkout ? (
-            <div className="next-workout-card">
-              <ProgramDay
-                program={activeProgram}
-                week={scheduledWorkout.week}
-                session={scheduledWorkout.session}
-                sessionIndex={scheduledWorkout.sessionIndex}
-                prMaxes={prMaxes}
-                title={`Week ${scheduledWorkout.week.week} | Day ${scheduledWorkout.sessionIndex + 1}`}
-                completed={isScheduledWorkoutDone}
-                onVariantChange={(liftIndex, variant) =>
-                  handleChangeHomeLiftVariant(
-                    activeProgram.id,
-                    scheduledWorkout.week.week,
-                    scheduledWorkout.session.day,
-                    liftIndex,
-                    variant
-                  )
-                }
-              />
-
-              <label className={`workout-complete-toggle${isScheduledWorkoutDone ? ' done' : ''}`}>
-                <input
-                  type="checkbox"
-                  checked={isScheduledWorkoutDone}
-                  onChange={() => handleToggleScheduledWorkout(
-                    activeProgram.id,
-                    scheduledWorkout.week.week,
-                    scheduledWorkout.session.day
-                  )}
+            {scheduledWorkout ? (
+              <div className="next-workout-card">
+                <ProgramDay
+                  program={activeProgram}
+                  week={scheduledWorkout.week}
+                  session={scheduledWorkout.session}
+                  sessionIndex={scheduledWorkout.sessionIndex}
+                  prMaxes={prMaxes}
+                  title={`Week ${scheduledWorkout.week.week} | Day ${scheduledWorkout.sessionIndex + 1}`}
+                  completed={isScheduledWorkoutDone}
+                  onVariantChange={(liftIndex, variant) =>
+                    handleChangeHomeLiftVariant(
+                      activeProgram.id,
+                      scheduledWorkout.week.week,
+                      scheduledWorkout.session.day,
+                      liftIndex,
+                      variant
+                    )
+                  }
                 />
-                <span className="workout-complete-track" aria-hidden="true">
-                  <span className="workout-complete-knob">
-                    {isScheduledWorkoutDone && <Check size={11} strokeWidth={3} />}
+
+                <label className={`workout-complete-toggle${isScheduledWorkoutDone ? ' done' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={isScheduledWorkoutDone}
+                    onChange={() => handleToggleScheduledWorkout(
+                      activeProgram.id,
+                      scheduledWorkout.week.week,
+                      scheduledWorkout.session.day
+                    )}
+                  />
+                  <span className="workout-complete-track" aria-hidden="true">
+                    <span className="workout-complete-knob">
+                      {isScheduledWorkoutDone && <Check size={11} strokeWidth={3} />}
+                    </span>
                   </span>
-                </span>
-                <span>Hai fatto questo allenamento?</span>
-              </label>
-            </div>
-          ) : activeProgram ? (
-            <p className="next-workout-empty">Nessun allenamento in programma per questa scheda.</p>
-          ) : (
-            <input
-              type="text"
-              value={nextWorkout}
-              onChange={(e) => { setNextWorkout(e.target.value); handleSave({ nextWorkout: e.target.value }); }}
-              className="next-workout-input"
-              placeholder="Scrivi qui il tuo prossimo allenamento..."
-              aria-label="Prossimo allenamento"
-            />
-          )}
-        </div>
+                  <span>Hai fatto questo allenamento?</span>
+                </label>
+              </div>
+            ) : (
+              <p className="next-workout-empty">Nessun allenamento in programma per questa scheda.</p>
+            )}
+          </div>
+        )}
       </div>
     );
   };
@@ -1271,6 +1265,7 @@ function App() {
       {!showSplash && currentPage === 'Leaderboard' && renderLeaderboardPage()}
       {!showSplash && currentPage === 'Profile' && renderProfilePage()}
       {!showSplash && currentPage === 'Programmazioni' && renderProgrammazioniPage()}
+      <WorkoutTools showLauncher={currentPage === 'Programmazioni'} />
       {currentPage !== 'Login' && (
         <div className="menu-bar">
           <button onClick={() => setCurrentPage('Home')} aria-label="Home" title="Home" aria-current={currentPage === 'Home' ? 'page' : undefined}>

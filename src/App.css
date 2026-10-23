@@ -874,18 +874,6 @@ body {
   display: block;
 }
 
-.next-workout-input {
-  width: 100%;
-  padding: 12px;
-  background-color: #333;
-  color: #fff;
-  border: 1px solid #ff4136;
-  border-radius: 8px;
-  font-size: 16px;
-  box-sizing: border-box;
-  text-align: center;
-}
-
 .next-workout-card {
   width: 100%;
   text-align: left;

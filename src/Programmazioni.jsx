@@ -1608,8 +1608,7 @@ const Programmazioni = ({ userId, prMaxes }) => {
 
                     {parsedSchedule.stats.complementari > 0 && !form.includeComplementari && (
                       <p className="program-preview-warning">
-                        <AlertCircle size={14} /> I complementari della scheda non saranno inclusi:
-                        stai usando quelli custom.
+                        <AlertCircle size={14} /> I complementari della scheda non saranno inclusi.
                       </p>
                     )}
                   </div>
