@@ -4,12 +4,13 @@ import { getDatabase, ref, set, get, update, onValue } from 'firebase/database';
 import './App.css';
 import bcrypt from 'bcryptjs';
 import PasswordInput from './PasswordInput';
-import { User, Trophy, Settings, Home, Layout, Dumbbell, ChevronDown, ChevronUp, Camera, Check } from 'lucide-react';
+import { User, Trophy, Settings, Home, Layout, Dumbbell, ChevronDown, ChevronUp, Camera, Check, KeyRound, ShieldCheck, X } from 'lucide-react';
 import LeaderboardWithSorting from './LeaderboardWithSorting';
 import Programmazioni from './Programmazioni';
 import ProgramDay from './ProgramDay';
 import ProgramEndingWarning from './ProgramEndingWarning';
 import WorkoutTools from './WorkoutTools';
+import DeveloperAdmin from './DeveloperAdmin';
 import {
   getNextWorkout,
   isProgramEndingSoon,
@@ -37,6 +38,10 @@ const firebaseConfig = {
 // Inizializza Firebase
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
+
+// Chiave di accesso alle opzioni sviluppatore.
+// Può essere sovrascritta in produzione con VITE_DEV_ADMIN_KEY.
+const DEVELOPER_ACCESS_KEY = import.meta.env.VITE_DEV_ADMIN_KEY || 'KumaDev2026';
 
 // Lo username diventa una chiave Firebase: va normalizzato in un unico punto
 const normalizeUsername = (value = '') => value.toLowerCase().replace(/\s/g, '');
@@ -135,6 +140,11 @@ function App() {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [saveError, setSaveError] = useState(false);
   const [leaderboardError, setLeaderboardError] = useState(false);
+  const [showDevKeyModal, setShowDevKeyModal] = useState(false);
+  const [devKeyInput, setDevKeyInput] = useState('');
+  const [devKeyError, setDevKeyError] = useState('');
+  const [isDevAdmin, setIsDevAdmin] = useState(false);
+  const [showDevAdmin, setShowDevAdmin] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -195,6 +205,10 @@ function App() {
         const userData = snapshot.val();
         const isPasswordCorrect = await bcrypt.compare(loginPassword, userData.password);
         if (isPasswordCorrect) {
+          if (userData.disabled) {
+            alert('Questo account è stato disabilitato. Contatta un amministratore.');
+            return;
+          }
           await loadUserData(lowercaseUsername);
           setUsername(userData.username);
           setSaveError(false);
@@ -261,7 +275,9 @@ function App() {
         gender: gender || '',
         showUsernameOnLeaderboard: false,
         profilePhoto: '',
-        firstLogin: true
+        firstLogin: true,
+        role: 'user',
+        disabled: false
       });
       await loadUserData(lowercaseUsername);
       setUsername(cleanUsername);
@@ -543,6 +559,11 @@ function App() {
     setShowFirstLoginModal(false);
     setSaveError(false);
     setLeaderboardError(false);
+    setShowDevKeyModal(false);
+    setDevKeyInput('');
+    setDevKeyError('');
+    setIsDevAdmin(false);
+    setShowDevAdmin(false);
     setCurrentPage('Login');
   };
 
@@ -565,11 +586,51 @@ function App() {
       setShowFirstLoginModal(false);
       setSaveError(false);
       setLeaderboardError(false);
+      setShowDevKeyModal(false);
+      setDevKeyInput('');
+      setDevKeyError('');
+      setIsDevAdmin(false);
+      setShowDevAdmin(false);
       setCurrentPage('Login');
       alert('Account eliminato');
     } catch (error) {
       console.error("Errore durante l'eliminazione dell'account:", error);
       alert("Impossibile eliminare l'account. Controlla la connessione e riprova.");
+    }
+  };
+
+  const openDeveloperOptions = () => {
+    if (isDevAdmin) {
+      setShowDevAdmin(true);
+      return;
+    }
+    setDevKeyInput('');
+    setDevKeyError('');
+    setShowDevKeyModal(true);
+  };
+
+  const closeDeveloperKeyModal = () => {
+    setShowDevKeyModal(false);
+    setDevKeyInput('');
+    setDevKeyError('');
+  };
+
+  const handleDeveloperKeySubmit = (event) => {
+    event.preventDefault();
+    if (devKeyInput.trim() !== DEVELOPER_ACCESS_KEY) {
+      setDevKeyError('Chiave non valida. Riprova.');
+      return;
+    }
+    setDevKeyError('');
+    setDevKeyInput('');
+    setShowDevKeyModal(false);
+    setIsDevAdmin(true);
+    setShowDevAdmin(true);
+  };
+
+  const handleCurrentUserUpdatedByAdmin = () => {
+    if (username) {
+      loadUserData(normalizeUsername(username));
     }
   };
 
@@ -820,6 +881,21 @@ function App() {
         <p className="profile-hint">Esci dal tuo account oppure elimina definitivamente i tuoi dati.</p>
         <button type="button" onClick={handleLogout} className="logout-button">Logout</button>
         <button type="button" onClick={handleDeleteAccount} className="danger-button">Elimina account</button>
+      </div>
+      <div className="profile-section dev-options-section">
+        <h3>Opzioni sviluppatore</h3>
+        <button type="button" className="dev-options-card" onClick={openDeveloperOptions}>
+          <span className="dev-options-icon">
+            <ShieldCheck size={22} />
+          </span>
+          <span className="dev-options-copy">
+            <span className="dev-options-title">Super Admin</span>
+            <span className="dev-options-subtitle">
+              {isDevAdmin ? 'Accesso attivo in questa sessione' : 'Gestione account'}
+            </span>
+          </span>
+          <KeyRound size={18} className="dev-options-arrow" />
+        </button>
       </div>
     </div>
   );
@@ -1256,7 +1332,7 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div className={`app${showSplash ? ' app-splash' : ''}${!showSplash && currentPage === 'Login' ? ' app-login' : ''}`}>
       <div className="app-background" />
       {showSplash && renderSplashPage()}
       {!showSplash && currentPage === 'Login' && renderLoginPage()}
@@ -1304,6 +1380,46 @@ function App() {
             </button>
           </div>
         </div>
+      )}
+      {showDevKeyModal && (
+        <div className="dev-modal-overlay">
+          <div className="dev-key-modal" role="dialog" aria-modal="true" aria-labelledby="dev-key-title">
+            <button
+              type="button"
+              className="dev-modal-close"
+              onClick={closeDeveloperKeyModal}
+              aria-label="Chiudi"
+            >
+              <X size={20} />
+            </button>
+            <div className="dev-key-icon">
+              <KeyRound size={28} />
+            </div>
+            <h2 id="dev-key-title">Opzioni sviluppatore</h2>
+            <p>Inserisci la chiave di accesso per entrare nel Super Admin.</p>
+            <form onSubmit={handleDeveloperKeySubmit}>
+              <PasswordInput
+                value={devKeyInput}
+                onChange={(event) => {
+                  setDevKeyInput(event.target.value);
+                  if (devKeyError) setDevKeyError('');
+                }}
+                placeholder="Chiave sviluppatore"
+              />
+              {devKeyError && <p className="dev-form-error" role="alert">{devKeyError}</p>}
+              <button type="submit" className="login-button">Entra nel Super Admin</button>
+            </form>
+          </div>
+        </div>
+      )}
+      {showDevAdmin && isDevAdmin && (
+        <DeveloperAdmin
+          db={db}
+          currentUsername={username}
+          onClose={() => setShowDevAdmin(false)}
+          onCurrentAccountDeleted={handleLogout}
+          onCurrentUserUpdated={handleCurrentUserUpdatedByAdmin}
+        />
       )}
     </div>
   );

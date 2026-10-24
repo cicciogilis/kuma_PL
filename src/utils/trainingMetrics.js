@@ -229,6 +229,13 @@ const getSessionLifts = (session, liftKey) =>
     return true;
   });
 
+const appendProgramLines = (lines, lifts) => {
+  lifts.forEach((lift) => {
+    const raw = String(lift?.raw ?? '').trim();
+    if (raw && !lines.includes(raw)) lines.push(raw);
+  });
+};
+
 const createMetricsAccumulator = () => ({
   volume: 0,
   intensityWeighted: 0,
@@ -357,6 +364,7 @@ export const aggregateWeeklyMetrics = ({
       .slice()
       .sort((a, b) => (toInteger(a?.day) || 0) - (toInteger(b?.day) || 0));
     const accumulator = createMetricsAccumulator();
+    const programLines = [];
     let sessionsCount = 0;
     let completedCount = 0;
 
@@ -370,6 +378,7 @@ export const aggregateWeeklyMetrics = ({
         completedCount += 1;
       }
 
+      appendProgramLines(programLines, lifts);
       lifts.forEach((lift) => {
         addLiftMetrics(accumulator, lift, getMaxForLift(program, lift, prMaxes));
       });
@@ -384,9 +393,10 @@ export const aggregateWeeklyMetrics = ({
       week: weekNumber,
       x: weekNumber,
       weekLabel: `W${weekNumber}`,
-      weekTitle: `Settimana ${weekNumber}`,
+      weekTitle: `Week ${weekNumber}`,
       weekStartIso,
       weekStartLabel: weekStartIso ? formatDateIt(weekStartIso) : '',
+      program: programLines.join('\n'),
       frequency: sessionsCount,
       sessions: sessionsCount,
       completed: completedCount,
@@ -429,6 +439,8 @@ export const aggregateSessionMetrics = ({
       if (!lifts.some(getSessionExposure)) return;
 
       const accumulator = createMetricsAccumulator();
+      const programLines = [];
+      appendProgramLines(programLines, lifts);
       lifts.forEach((lift) => {
         addLiftMetrics(accumulator, lift, getMaxForLift(program, lift, prMaxes));
       });
@@ -446,9 +458,10 @@ export const aggregateSessionMetrics = ({
         week: weekNumber,
         x: hasDay ? getSessionX(weekNumber, sessionDay) : weekNumber,
         weekLabel: `W${weekNumber}`,
-        weekTitle: `Settimana ${weekNumber}`,
+        weekTitle: `Week ${weekNumber}`,
         weekStartIso: weekly?.weekStartIso || '',
         weekStartLabel: weekly?.weekStartLabel || '',
+        program: programLines.join('\n'),
         sessionDay: hasDay ? sessionDay : null,
         sessionLabel: hasDay ? DAY_LABELS[sessionDay] : 'Seduta',
         sessionDateIso,
@@ -470,9 +483,10 @@ export const aggregateSessionMetrics = ({
         week: weekNumber,
         x: weekNumber,
         weekLabel: `W${weekNumber}`,
-        weekTitle: `Settimana ${weekNumber}`,
+        weekTitle: `Week ${weekNumber}`,
         weekStartIso: weekly?.weekStartIso || '',
         weekStartLabel: weekly?.weekStartLabel || '',
+        program: '',
         volume: null,
         intensity: null,
         rpe: null,

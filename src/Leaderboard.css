@@ -1,3 +1,8 @@
+.leaderboard {
+  width: 100%;
+  min-width: 0;
+}
+
 .leaderboard-container {
   width: 100%;
   max-width: 500px;
@@ -8,6 +13,7 @@
   display: flex;
   flex-direction: column;
   min-height: calc(100vh - 60px);
+  min-width: 0;
   box-sizing: border-box;
 }
 
@@ -58,6 +64,8 @@
   align-items: center;
   gap: 10px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .sort-container.filter-container {
@@ -76,6 +84,8 @@
   justify-content: center;
   gap: 8px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .sort-option {
@@ -136,6 +146,9 @@
   justify-content: center;
   gap: 10px;
   padding: 10px 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .filter-toggle {
@@ -146,6 +159,8 @@
   font-size: 12px;
   color: #ccc;
   white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .filter-toggle:has(input:disabled) {
@@ -193,6 +208,10 @@
 .filter-toggle-label {
   font-weight: 500;
   transition: color 0.2s;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
 }
 
 .filter-toggle input:checked ~ .filter-toggle-label {
@@ -206,6 +225,7 @@
 .leaderboard-content {
   flex-grow: 1;
   overflow-y: auto;
+  min-width: 0;
 }
 
 .weight-category {
@@ -431,4 +451,19 @@
   font-size: 13px;
   text-align: center;
   box-sizing: border-box;
+}
+
+@media (max-width: 360px) {
+  .leaderboard-title {
+    font-size: 28px;
+  }
+
+  .leaderboard-title-row {
+    gap: 6px;
+  }
+
+  .leaderboard-icon {
+    width: 20px;
+    height: 20px;
+  }
 }

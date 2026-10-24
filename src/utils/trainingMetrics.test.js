@@ -58,6 +58,47 @@ test('volume 4x6 al 100% con massimale 100 = 2400 kg', () => {
   assert.equal(row.density, undefined);
 });
 
+test('il tooltip usa Week e la riga originale della scheda', () => {
+  const program = makeProgram({
+    weeks: [
+      makeWeek(1, [
+        makeSession(1, [
+          makeLift(
+            'squat',
+            [{ sets: 3, reps: '3', percent: 90 }],
+            { raw: '3 @8 + 2x3 90% fermo 1' }
+          ),
+        ]),
+        makeSession(3, [
+          makeLift(
+            'squat',
+            [{ sets: 2, reps: '5', percent: 80 }],
+            { raw: '2x5 80%' }
+          ),
+        ]),
+      ]),
+    ],
+  });
+
+  const [weekly] = aggregateWeeklyMetrics({
+    program,
+    prMaxes: null,
+    completions: {},
+    liftKey: 'squat',
+  });
+  const sessionRows = aggregateSessionMetrics({
+    program,
+    prMaxes: null,
+    completions: {},
+    liftKey: 'squat',
+  });
+
+  assert.equal(weekly.weekTitle, 'Week 1');
+  assert.equal(weekly.program, '3 @8 + 2x3 90% fermo 1\n2x5 80%');
+  assert.equal(sessionRows[0].program, '3 @8 + 2x3 90% fermo 1');
+  assert.equal(sessionRows[1].program, '2x5 80%');
+});
+
 test('percentuali con virgola e massimale producono kg corretti', () => {
   const program = makeProgram({
     weeks: [

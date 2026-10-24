@@ -207,20 +207,10 @@ const DashboardTooltip = ({ active, payload, activeMetricKeys }) => {
         <span className="program-dashboard-tooltip-label">RPE medio</span>
         <span className="program-dashboard-tooltip-value">{formatDecimal(row.rpe)}</span>
       </div>
-      <div className="program-dashboard-tooltip-row">
-        <span className="program-dashboard-tooltip-label">Serie / Rep</span>
-        <span className="program-dashboard-tooltip-value">
-          {row.sets} / {row.reps}
-        </span>
+      <div className="program-dashboard-tooltip-program-row">
+        <span className="program-dashboard-tooltip-label">Programma</span>
+        <span className="program-dashboard-tooltip-program">{row.program || '—'}</span>
       </div>
-      {row.sessionLabel && (
-        <div className="program-dashboard-tooltip-row">
-          <span className="program-dashboard-tooltip-label">Seduta</span>
-          <span className="program-dashboard-tooltip-value">
-            {row.sessionCompleted ? 'completata' : 'da completare'}
-          </span>
-        </div>
-      )}
       {row.estimated && (
         <div className="program-dashboard-tooltip-estimate">
           Include stime RPE

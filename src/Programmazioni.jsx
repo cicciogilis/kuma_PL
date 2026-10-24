@@ -1421,7 +1421,6 @@ const Programmazioni = ({ userId, prMaxes }) => {
                 <div className="program-custom-complementari">
                   <div className="program-custom-complementari-head">
                     <span className="program-attach-title">Complementari custom</span>
-                    <span className="program-hint">Aggiungi gli esercizi per ogni Day.</span>
                   </div>
 
                   {customComplementari.map((day) => (
