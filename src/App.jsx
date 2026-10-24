@@ -145,6 +145,7 @@ function App() {
   const [devKeyError, setDevKeyError] = useState('');
   const [isDevAdmin, setIsDevAdmin] = useState(false);
   const [showDevAdmin, setShowDevAdmin] = useState(false);
+  const [impersonationOrigin, setImpersonationOrigin] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -205,6 +206,7 @@ function App() {
         const userData = snapshot.val();
         const isPasswordCorrect = await bcrypt.compare(loginPassword, userData.password);
         if (isPasswordCorrect) {
+          setImpersonationOrigin(null);
           if (userData.disabled) {
             alert('Questo account è stato disabilitato. Contatta un amministratore.');
             return;
@@ -468,7 +470,9 @@ function App() {
         await update(currentUserRef, { username: cleanUsername });
         setUsername(cleanUsername);
         setNewUsername('');
-        localStorage.setItem('username', cleanUsername);
+        if (!impersonationOrigin) {
+          localStorage.setItem('username', cleanUsername);
+        }
         alert('Username aggiornato');
         return;
       }
@@ -497,7 +501,9 @@ function App() {
 
       setUsername(cleanUsername);
       setNewUsername('');
-      localStorage.setItem('username', cleanUsername);
+      if (!impersonationOrigin) {
+        localStorage.setItem('username', cleanUsername);
+      }
       alert('Username cambiato con successo');
     } catch (error) {
       console.error('Errore durante il cambio username:', error);
@@ -539,7 +545,9 @@ function App() {
       const saltRounds = 10;
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
       await update(userRef, { password: hashedNewPassword });
-      localStorage.setItem('password', newPassword);
+      if (!impersonationOrigin) {
+        localStorage.setItem('password', newPassword);
+      }
       alert('Password cambiata con successo');
       setCurrentPassword('');
       setNewPassword('');
@@ -564,6 +572,7 @@ function App() {
     setDevKeyError('');
     setIsDevAdmin(false);
     setShowDevAdmin(false);
+    setImpersonationOrigin(null);
     setCurrentPage('Login');
   };
 
@@ -591,6 +600,7 @@ function App() {
       setDevKeyError('');
       setIsDevAdmin(false);
       setShowDevAdmin(false);
+      setImpersonationOrigin(null);
       setCurrentPage('Login');
       alert('Account eliminato');
     } catch (error) {
@@ -632,6 +642,58 @@ function App() {
     if (username) {
       loadUserData(normalizeUsername(username));
     }
+  };
+
+  const endImpersonation = async () => {
+    if (!impersonationOrigin?.username) return;
+
+    const origin = impersonationOrigin;
+    await loadUserData(normalizeUsername(origin.username));
+    setUsername(origin.username);
+    setPassword(origin.password || '');
+    localStorage.setItem('username', origin.username);
+    if (origin.password) {
+      localStorage.setItem('password', origin.password);
+    }
+    setImpersonationOrigin(null);
+    setShowDevAdmin(false);
+    setNewUsername('');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setCurrentPage('Profile');
+  };
+
+  const handleImpersonateUser = async (user) => {
+    if (!user) return;
+
+    const targetUsername = user.username || user.key;
+    const targetKey = normalizeUsername(targetUsername);
+    if (!targetKey) return;
+
+    if (impersonationOrigin && targetKey === normalizeUsername(impersonationOrigin.username)) {
+      await endImpersonation();
+      return;
+    }
+
+    if (!impersonationOrigin && targetKey === normalizeUsername(username)) {
+      setShowDevAdmin(false);
+      setCurrentPage('Home');
+      return;
+    }
+
+    if (!impersonationOrigin) {
+      setImpersonationOrigin({ username, password });
+    }
+
+    await loadUserData(targetKey);
+    setUsername(targetUsername);
+    setShowDevAdmin(false);
+    setNewUsername('');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setCurrentPage('Home');
   };
 
   const renderSplashPage = () => (
@@ -896,6 +958,17 @@ function App() {
           </span>
           <KeyRound size={18} className="dev-options-arrow" />
         </button>
+        {impersonationOrigin && (
+          <div className="dev-impersonation-box">
+            <div>
+              <strong>Stai impersonificando @{username}</strong>
+              <span>Account Super Admin: @{impersonationOrigin.username}</span>
+            </div>
+            <button type="button" onClick={endImpersonation}>
+              Termina
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -1417,8 +1490,10 @@ function App() {
           db={db}
           currentUsername={username}
           onClose={() => setShowDevAdmin(false)}
-          onCurrentAccountDeleted={handleLogout}
+          onCurrentAccountDeleted={impersonationOrigin ? endImpersonation : handleLogout}
           onCurrentUserUpdated={handleCurrentUserUpdatedByAdmin}
+          onImpersonate={handleImpersonateUser}
+          isImpersonating={Boolean(impersonationOrigin)}
         />
       )}
     </div>

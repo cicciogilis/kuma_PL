@@ -5,6 +5,7 @@ import bcrypt from 'bcryptjs';
 import {
   AlertTriangle,
   Camera,
+  LogIn,
   RefreshCw,
   Save,
   Search,
@@ -44,6 +45,8 @@ function DeveloperAdmin({
   onClose,
   onCurrentAccountDeleted,
   onCurrentUserUpdated,
+  onImpersonate,
+  isImpersonating,
 }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -239,7 +242,7 @@ function DeveloperAdmin({
     try {
       const hashedPassword = await bcrypt.hash(newPassword, 10);
       await update(ref(db, `users/${selectedUser.key}`), { password: hashedPassword });
-      if (selectedUser.key === currentKey) {
+      if (selectedUser.key === currentKey && !isImpersonating) {
         localStorage.setItem('password', newPassword);
       }
       setNewPassword('');
@@ -268,7 +271,11 @@ function DeveloperAdmin({
     try {
       await set(ref(db, `users/${selectedUser.key}`), null);
       if (selectedUser.key === currentKey) {
-        window.alert('Il tuo account è stato eliminato. Verrai disconnesso.');
+        window.alert(
+          isImpersonating
+            ? 'Account impersonificato eliminato. Tornerai al tuo account Super Admin.'
+            : 'Il tuo account è stato eliminato. Verrai disconnesso.'
+        );
         onCurrentAccountDeleted?.();
         return;
       }
@@ -787,6 +794,25 @@ function DeveloperAdmin({
                   </div>
                 </form>
 
+                <div className="dev-detail-section dev-impersonate-box">
+                  <div className="dev-impersonate-copy">
+                    <h4>Impersonificazione</h4>
+                    <p>
+                      Accedi all&apos;area riservata di @{selectedUser.username}
+                      {' '}mantenendo i privilegi Super Admin.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="dev-impersonate-button"
+                    onClick={() => onImpersonate?.(selectedUser)}
+                    disabled={saving}
+                  >
+                    <LogIn size={16} />
+                    IMPERSONIFICA UTENTE
+                  </button>
+                </div>
+
                 <div className="dev-detail-section">
                   <h4>Cambia password</h4>
                   <div className="dev-password-grid">
@@ -841,6 +867,8 @@ DeveloperAdmin.propTypes = {
   onClose: PropTypes.func.isRequired,
   onCurrentAccountDeleted: PropTypes.func,
   onCurrentUserUpdated: PropTypes.func,
+  onImpersonate: PropTypes.func,
+  isImpersonating: PropTypes.bool,
 };
 
 export default DeveloperAdmin;

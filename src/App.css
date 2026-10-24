@@ -1263,6 +1263,56 @@ body {
   color: #ff4136;
 }
 
+.dev-impersonation-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background-color: rgba(167, 139, 250, 0.08);
+  border: 1px solid rgba(167, 139, 250, 0.45);
+  border-radius: 8px;
+}
+
+.dev-impersonation-box > div {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dev-impersonation-box strong {
+  color: #c4b5fd;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.dev-impersonation-box span {
+  color: #888;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.dev-impersonation-box button {
+  width: auto;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 6px 10px;
+  color: #c4b5fd;
+  background-color: transparent;
+  border: 1px solid #a78bfa;
+  border-radius: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dev-impersonation-box button:hover {
+  color: #ddd0ff;
+  background-color: rgba(167, 139, 250, 0.14);
+}
+
 .dev-modal-overlay,
 .dev-admin-overlay {
   position: fixed;
@@ -1964,6 +2014,60 @@ body {
   letter-spacing: 0.8px;
 }
 
+.dev-impersonate-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background-color: rgba(167, 139, 250, 0.08);
+  border-color: rgba(167, 139, 250, 0.45);
+}
+
+.dev-impersonate-copy {
+  min-width: 0;
+}
+
+.dev-impersonate-box h4 {
+  margin-bottom: 4px;
+  color: #c4b5fd;
+}
+
+.dev-impersonate-box p {
+  margin: 0;
+  color: #999;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dev-impersonate-button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 0;
+  padding: 10px 14px;
+  color: #fff;
+  background-color: #8b5cf6;
+  border: 1px solid #8b5cf6;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.dev-impersonate-button:hover {
+  background-color: #a78bfa;
+  border-color: #a78bfa;
+}
+
+.dev-impersonate-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .dev-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2453,6 +2557,19 @@ body {
   .dev-detail-close:hover {
     background-color: #2a2a2a;
     border-color: #ff4136;
+  }
+
+  .dev-impersonate-box {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .dev-impersonate-button {
+    width: 100%;
+  }
+
+  .dev-impersonation-box {
+    flex-wrap: wrap;
   }
 
   .dev-form-grid,
