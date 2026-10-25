@@ -66,6 +66,8 @@ const TeamProgramViewer = ({
             prMaxes={prMaxes}
             completions={completions}
             onVariantChange={onVariantChange}
+            collapsibleWeeks
+            defaultWeeksOpen={true}
           />
         </div>
 

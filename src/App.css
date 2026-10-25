@@ -211,17 +211,28 @@ body {
 }
 
 .me-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
   font-size: 20px;
   font-weight: bold;
   color: #ff4136;
-  margin: 20px 0 10px 0;
+  margin: 20px auto 10px auto;
   text-align: center;
   width: 100%;
   max-width: 500px;
 }
 
 .me-total-value {
+  flex: 1;
+  min-width: 0;
   font-size: 36px;
+  line-height: 1.1;
+}
+
+.me-total-goal {
+  color: #ffd700;
 }
 
 .personal-info-section {
@@ -450,6 +461,11 @@ body {
   border-radius: 5px;
   font-size: 16px;
   box-sizing: border-box;
+}
+
+.pr-input-goal {
+  color: #ffd700;
+  font-weight: 700;
 }
 
 .pr-textarea {
@@ -746,7 +762,7 @@ body {
   gap: 20px;
   width: 100%;
   min-width: 0;
-  margin-top: 30px;
+  margin-top: 22px;
 }
 
 .home-card {
@@ -781,21 +797,91 @@ body {
 
 .home-card-team {
   width: 100%;
-  margin-top: 30px;
+  max-width: 500px;
+  margin: 0 auto 8px auto;
 }
 
 .home-event-invites {
   width: 100%;
-  margin: -10px 0 0;
+  margin: 0 0 18px;
 }
 
 /* Con il banner gara in home, i riquadri sotto si avvicinano senza attaccarsi. */
 .home-event-invites + .home-grid {
-  margin-top: 24px;
+  margin-top: 18px;
 }
 
 .home-event-invites .program-event-notice:last-child {
   margin-bottom: 0;
+}
+
+.home-ending-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px 16px;
+  border: 2px dashed #ff4136;
+  border-radius: 10px;
+  background-color: rgba(255, 65, 54, 0.08);
+  color: #ff8a82;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+  text-align: center;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+
+.home-ending-action svg {
+  flex: 0 0 auto;
+  color: #ff4136;
+}
+
+.home-ending-action:hover:not(:disabled) {
+  border-color: #ff6b62;
+  background-color: rgba(255, 65, 54, 0.14);
+}
+
+.home-ending-action:focus-visible {
+  outline: 2px solid #ff4136;
+  outline-offset: 2px;
+}
+
+.home-ending-action.sent,
+.home-ending-action:disabled {
+  border-style: solid;
+  border-color: rgba(123, 216, 143, 0.6);
+  background-color: rgba(123, 216, 143, 0.12);
+  color: #7bd88f;
+  cursor: default;
+}
+
+.home-ending-action.sent svg,
+.home-ending-action:disabled svg {
+  color: #7bd88f;
+}
+
+.home-ending-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.home-ending-cta {
+  color: #ffd166;
+  font-weight: 800;
+}
+
+.home-ending-action.sent .home-ending-copy {
+  color: #7bd88f;
+}
+
+.home-ending-action.sent .home-ending-cta {
+  display: none;
 }
 
 .programmazioni-page {
@@ -921,8 +1007,8 @@ body {
 .next-workout-section {
   width: 100%;
   max-width: 500px;
-  margin: 30px auto 0 auto;
-  padding: 20px;
+  margin: 22px auto 0 auto;
+  padding: 20px 15px;
   box-sizing: border-box;
   text-align: center;
 }
@@ -931,7 +1017,7 @@ body {
   font-size: 18px;
   font-weight: bold;
   color: #ff4136;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
   display: block;
 }
 
@@ -941,7 +1027,7 @@ body {
 }
 
 .next-workout-card .program-day {
-  margin-top: 14px;
+  margin-top: 8px;
 }
 
 .next-workout-empty {
@@ -1057,10 +1143,58 @@ body {
   margin-bottom: 2px;
 }
 
+.leaderboard-toggle-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+
+.leaderboard-toggle-text {
+  flex: 1;
+  min-width: 0;
+  max-width: none;
+}
+
+.leaderboard-toggle-title {
+  color: #ccc;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.leaderboard-toggle-hint {
+  margin: 4px 0 0;
+  color: #888;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: normal;
+}
+
 .inline-toggle {
+  flex: 0 0 auto;
   align-items: center;
   gap: 10px;
-  margin-top: 12px;
+  margin-top: 0;
+  margin-right: 0;
+}
+
+@media (max-width: 600px) {
+  .leaderboard-toggle-row {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .leaderboard-toggle-text {
+    order: 2;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .inline-toggle {
+    order: 1;
+    margin-top: 0;
+  }
 }
 
 .home-header {
@@ -1090,7 +1224,7 @@ body {
   font-size: 24px;
   font-weight: bold;
   color: #fff;
-  margin: 0 0 35px 0;
+  margin: 0 0 22px 0;
 }
 
 .first-login-modal-overlay {
@@ -2889,4 +3023,22 @@ input.checkbox-dark[type="checkbox"]:focus-visible {
 input.checkbox-dark[type="checkbox"]:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+@media (max-width: 420px) {
+  .me-total {
+    gap: 10px;
+  }
+
+  .me-total-value {
+    font-size: 30px;
+  }
+
+  .leaderboard-toggle-title {
+    font-size: 13px;
+  }
+
+  .leaderboard-toggle-hint {
+    font-size: 11px;
+  }
 }

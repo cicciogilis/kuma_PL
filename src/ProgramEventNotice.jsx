@@ -1,5 +1,5 @@
 import PropTypes from 'prop-types';
-import { Megaphone } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 import { formatDateIt, parseLocalDate, todayIso } from './utils/programData';
 import './ProgramEventNotice.css';
 
@@ -19,7 +19,7 @@ const isEventUpcoming = (event) => {
   return eventDate.getTime() >= today.getTime();
 };
 
-export const ProgramEventNotice = ({ event }) => {
+export const ProgramEventNotice = ({ event, compact = false, coachBadge = false }) => {
   if (!event || !isEventUpcoming(event)) return null;
 
   const coach = event.coachName || 'Il tuo allenatore';
@@ -27,10 +27,48 @@ export const ProgramEventNotice = ({ event }) => {
     ? ['Single Lift', liftLabel(event.singleLift)].filter(Boolean).join(' · ')
     : 'Gara completa';
 
+  if (coachBadge) {
+    return (
+      <div className="program-event-notice program-event-notice-coach-badge" role="status">
+        <span className="program-event-notice-icon" aria-hidden="true">
+          <Trophy size={16} />
+        </span>
+        <div className="program-event-notice-body">
+          <strong className="program-event-notice-name">{event.name}</strong>
+          <span className="program-event-notice-meta">
+            {[event.federation, typeText].filter(Boolean).join(' · ')}
+          </span>
+          <span className="program-event-notice-place">
+            {[formatDateIt(event.date), event.location].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (compact) {
+    return (
+      <div className="program-event-notice program-event-notice-compact" role="status">
+        <span className="program-event-notice-icon" aria-hidden="true">
+          <Trophy size={14} />
+        </span>
+        <div className="program-event-notice-body">
+          <strong className="program-event-notice-name">{event.name}</strong>
+          <span className="program-event-notice-meta">
+            {[event.federation, typeText].filter(Boolean).join(' · ')}
+          </span>
+          <span className="program-event-notice-place">
+            {[formatDateIt(event.date), event.location].filter(Boolean).join(' · ')}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="program-event-notice" role="status">
       <span className="program-event-notice-icon" aria-hidden="true">
-        <Megaphone size={18} />
+        <Trophy size={18} />
       </span>
       <div className="program-event-notice-body">
         <span className="program-event-notice-kicker">{coach} ti ha convocato per</span>
@@ -62,11 +100,13 @@ ProgramEventNotice.propTypes = {
 const ProgramEventNotices = ({ events, className = '' }) => {
   const visible = (Array.isArray(events) ? events : []).filter(isEventUpcoming);
   if (!visible.length) return null;
+  const isCompact = className?.includes('team-detail-event-badge');
+  const isCoachBadge = className?.includes('team-detail-event-coach-badge');
 
   return (
     <div className={['program-event-notices', className].filter(Boolean).join(' ')}>
       {visible.map((event) => (
-        <ProgramEventNotice key={event.id} event={event} />
+        <ProgramEventNotice key={event.id} event={event} compact={isCompact} coachBadge={isCoachBadge} />
       ))}
     </div>
   );

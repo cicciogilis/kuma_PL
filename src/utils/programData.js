@@ -119,7 +119,7 @@ export const isProgramEndingSoon = (program, today = new Date()) => {
   if (start.getTime() > todayStart.getTime()) return false;
 
   const days = getDaysUntilProgramEnd(program, todayStart);
-  return days != null && days >= 0 && days <= 7;
+  return days != null && days >= 0 && days <= 14;
 };
 
 export const getNextWorkout = (program, today = new Date()) => {

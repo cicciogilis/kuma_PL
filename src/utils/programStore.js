@@ -58,8 +58,8 @@ const normalizeProgram = (program) => {
 
 const sortPrograms = (programs) =>
   [...programs].sort((a, b) => {
-    const aTime = Date.parse(a.createdAt || '') || 0;
-    const bTime = Date.parse(b.createdAt || '') || 0;
+    const aTime = Date.parse(a.startDate || '') || 0;
+    const bTime = Date.parse(b.startDate || '') || 0;
     return bTime - aTime;
   });
 

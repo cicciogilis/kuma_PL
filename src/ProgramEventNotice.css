@@ -61,3 +61,148 @@
   color: #cffafe;
   font-size: 11px;
 }
+
+/* Compact version for coach dashboard - inline with athlete name */
+.program-event-notice-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  max-width: 320px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid rgba(45, 212, 191, 0.4);
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.25), rgba(45, 212, 191, 0.12));
+  box-shadow: 0 4px 12px rgba(14, 116, 144, 0.12);
+}
+
+.program-event-notice-compact .program-event-notice-icon {
+  width: 24px;
+  height: 24px;
+  background-color: rgba(45, 212, 191, 0.2);
+  color: #5eead4;
+}
+
+.program-event-notice-compact .program-event-notice-body {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.program-event-notice-compact .program-event-notice-name {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.program-event-notice-compact .program-event-notice-meta {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.program-event-notice-compact .program-event-notice-place {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+/* Team detail header layout for inline event badge */
+.team-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.team-detail-header .team-detail-back {
+  flex: 0 0 auto;
+}
+
+.team-detail-header .team-detail-avatar {
+  flex: 0 0 auto;
+}
+
+.team-detail-header .team-detail-title {
+  flex: 1;
+  min-width: 120px;
+}
+
+.team-detail-header .team-detail-event-badge {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.team-detail-header .team-detail-event-coach-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  max-width: 360px;
+  z-index: 10;
+}
+
+.team-detail-header {
+  position: relative;
+}
+
+.program-event-notice-coach-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  max-width: 360px;
+  padding: 10px 12px;
+  border: 1px solid rgba(45, 212, 191, 0.5);
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(14, 116, 144, 0.3), rgba(45, 212, 191, 0.15));
+  box-shadow: 0 6px 20px rgba(14, 116, 144, 0.15);
+}
+
+.program-event-notice-coach-badge .program-event-notice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background-color: rgba(45, 212, 191, 0.22);
+  color: #5eead4;
+}
+
+.program-event-notice-coach-badge .program-event-notice-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.program-event-notice-coach-badge .program-event-notice-name {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.program-event-notice-coach-badge .program-event-notice-meta {
+  color: #a5f3fc;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.program-event-notice-coach-badge .program-event-notice-place {
+  color: #cffafe;
+  font-size: 10px;
+}
+
+@media (max-width: 520px) {
+  .team-detail-header .team-detail-event-coach-badge {
+    position: static;
+    margin: 10px 0 0 auto;
+    max-width: 100%;
+  }
+}

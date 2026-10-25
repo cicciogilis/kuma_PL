@@ -15,6 +15,7 @@ import TeamEvents from './TeamEvents';
 import TeamProgramForm from './TeamProgramForm';
 import TeamCharts from './TeamCharts';
 import TeamProgramViewer from './TeamProgramViewer';
+import ProgramEventNotices from './ProgramEventNotice';
 import {
   deleteProgramFully,
   normalizePrograms,
@@ -24,6 +25,7 @@ import {
   subscribeProgramNotes,
   subscribePrograms,
 } from './utils/programStore';
+import { subscribeAthleteEvents } from './utils/eventStore';
 import {
   formatDateIt,
   getDaysUntilProgramEnd,
@@ -163,6 +165,7 @@ const TeamDashboard = ({ coachKey, coachName }) => {
   const [rosterPrograms, setRosterPrograms] = useState({});
   const [selectedCompletions, setSelectedCompletions] = useState({});
   const [selectedNotes, setSelectedNotes] = useState({});
+  const [selectedAthleteEvents, setSelectedAthleteEvents] = useState([]);
 
   // Elenco atleti assegnati al coach in tempo reale.
   useEffect(() => {
@@ -181,6 +184,20 @@ const TeamDashboard = ({ coachKey, coachName }) => {
     );
     return () => unsubscribe();
   }, [normalizedCoachKey]);
+
+  // Eventi dell'atleta selezionato.
+  useEffect(() => {
+    if (!selectedKey) {
+      setSelectedAthleteEvents([]);
+      return undefined;
+    }
+    const unsubscribe = subscribeAthleteEvents(
+      selectedKey,
+      (events) => setSelectedAthleteEvents(events),
+      () => {}
+    );
+    return () => unsubscribe();
+  }, [selectedKey]);
 
   const athleteKeys = useMemo(() => athletes.map((athlete) => athlete.key).join(','), [athletes]);
 
@@ -458,6 +475,7 @@ const TeamDashboard = ({ coachKey, coachName }) => {
               {age != null ? ` · ${age} anni` : ''}
             </p>
           </div>
+          <ProgramEventNotices events={selectedAthleteEvents} className="team-detail-event-coach-badge" />
         </div>
 
         <section className="team-detail-section">
@@ -759,7 +777,6 @@ const TeamDashboard = ({ coachKey, coachName }) => {
           coachKey={normalizedCoachKey}
           coachName={coachName}
           athletes={athletes}
-          selectedAthleteKey={selectedKey}
           onClose={() => setShowEvents(false)}
         />
       )}

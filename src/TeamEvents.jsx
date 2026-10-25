@@ -62,7 +62,7 @@ const isPast = (event) => {
   return date.getTime() < parseLocalDate(todayIso()).getTime();
 };
 
-const TeamEvents = ({ coachKey, coachName, athletes, selectedAthleteKey, onClose }) => {
+const TeamEvents = ({ coachKey, coachName, athletes, onClose }) => {
   const [events, setEvents] = useState([]);
   const [view, setView] = useState('list');
   const [form, setForm] = useState(() => emptyForm(coachKey, coachName));
@@ -75,17 +75,10 @@ const TeamEvents = ({ coachKey, coachName, athletes, selectedAthleteKey, onClose
     () =>
       subscribeEvents(
         (all) =>
-          setEvents(
-            all.filter((event) => {
-              if (selectedAthleteKey) {
-                return event.athletes && event.athletes[selectedAthleteKey];
-              }
-              return event.coachKey === coachKey;
-            })
-          ),
+          setEvents(all.filter((event) => event.coachKey === coachKey)),
         () => setPageError('Impossibile caricare gli eventi. Verifica la connessione.')
       ),
-      [coachKey, selectedAthleteKey]
+      [coachKey]
     );
 
   // Cleanup: chiudi il modal se il componente si smonta mentre è aperto

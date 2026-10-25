@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixture – banner scadenza</title>
+<link rel="stylesheet" href="../../src/Programmazioni.css">
+<style>
+  body {
+    margin: 0;
+    padding: 20px;
+    background: #000;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .app {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Simula il card container */
+  .program-card {
+    background-color: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 10px;
+    overflow: visible;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .program-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px;
+    background-color: #222;
+    border-radius: 9px 9px 0 0;
+    cursor: pointer;
+  }
+  .program-card-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .program-card-name {
+    overflow: hidden;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .program-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    color: #999;
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="program-card" id="card-pending">
+    <div class="program-card-header">
+      <div class="program-card-main">
+        <button type="button" class="program-expiry-action">
+          <span>Avvisa Marco Moscheo che la scheda sta finendo</span>
+        </button>
+        <span class="program-card-name">Scheda Test Pending</span>
+        <span class="program-card-meta">dal 05/10/2026 · 4 week</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="program-card" id="card-sent" style="margin-top: 20px;">
+    <div class="program-card-header">
+      <div class="program-card-main">
+        <button type="button" class="program-expiry-action sent" disabled>
+          <span>Hai inviato a Marco Moscheo l'avviso di scheda finita</span>
+        </button>
+        <span class="program-card-name">Scheda Test Sent</span>
+        <span class="program-card-meta">dal 04/10/2026 · 4 week</span>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

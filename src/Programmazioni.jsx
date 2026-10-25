@@ -928,9 +928,7 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                 disabled={noticeSent || expirySaving === program.id}
                 aria-pressed={noticeSent}
               >
-                {noticeSent
-                  ? <Check size={15} aria-hidden="true" />
-                  : <BellRing size={15} aria-hidden="true" />}
+                {!noticeSent && <BellRing size={15} aria-hidden="true" />}
                 <span>
                   {noticeSent
                     ? `Hai inviato a ${coachDisplayName} l'avviso di scheda finita`

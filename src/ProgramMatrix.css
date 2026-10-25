@@ -38,6 +38,9 @@
 }
 
 .program-matrix-week th {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 7px 10px;
   border-top: 1px solid #2a2a2a;
   border-bottom: 1px solid #2a2a2a;
@@ -45,7 +48,31 @@
   text-align: left;
 }
 
+.program-matrix-week-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background-color: transparent;
+  color: #ff4136;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.program-matrix-week-toggle:hover {
+  background-color: rgba(255, 65, 54, 0.12);
+}
+
+.program-matrix-week-toggle:focus-visible {
+  outline: 2px solid #ff4136;
+  outline-offset: 2px;
+}
+
 .program-matrix-week-title {
+  flex: 1;
   color: #ff4136;
   font-size: 11px;
   font-weight: 800;

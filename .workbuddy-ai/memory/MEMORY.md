@@ -8,6 +8,19 @@
 - Checkbox custom: classe `checkbox-dark` su `<input type="checkbox">`; il CSS usa
   `input.checkbox-dark[type="checkbox"]` per battere le regole generiche `.campo input`.
 
+## Banner scadenza scheda (`.program-expiry-action`)
+- Stati pending (giallo) e sent (verde) devono condividere la STESSA geometria:
+  stesso padding, stesso border-radius, stesso font-size. Solo colore/bordo/background
+  cambiano via override minimale (DRY).
+- **NO `position: absolute`** per il banner: usa normal flow con `width: 100%` su mobile.
+- **NO `white-space: nowrap`**: il testo deve poter andare a capo su viewport stretti.
+- **NO `:has()` padding hack**: se il banner è in normal flow non serve compensare
+  l'altezza del parent con `:has(.program-expiry-action.sent) { padding-top: ... }`.
+- `box-sizing: border-box` + `max-width: 100%` obbligatori su qualsiasi elemento a
+  larghezza variabile dentro card.
+- border-radius: `12px` (non pill `999px`) per coerenza desktop/mobile.
+- Test di regola: `.workbuddy-ai/tests/expiryBanner.css.test.js` + layout Playwright.
+
 ## TRAPPOLA: lo sfondo `.app-background` (z-index:-1) NON va coperto da `html`
 - Lo sfondo app (`.app-background`, `App.css`) è un layer `position:fixed; inset:0; z-index:-1`
   con `background-image: url('/logo512.png')`, `opacity:.12`, `filter:grayscale(100%)`.

@@ -14,6 +14,7 @@ import DeveloperAdmin from './DeveloperAdmin';
 import TeamDashboard from './TeamDashboard';
 import { db } from './utils/firebase';
 import {
+  formatDateIt,
   getNextWorkout,
   isProgramEndingSoon,
   selectActiveProgram,
@@ -24,7 +25,9 @@ import {
   migrateLocalPrograms,
   saveCompletions,
   saveProgram,
+  sendExpiryNotice,
   subscribeCompletions,
+  subscribeExpiryNotices,
   subscribePrograms,
 } from './utils/programStore';
 import { subscribeAthleteEvents } from './utils/eventStore';
@@ -148,6 +151,9 @@ function App() {
   const [coachKey, setCoachKey] = useState(null);
   const [coachDisplayName, setCoachDisplayName] = useState('');
   const [homeAthleteEvents, setHomeAthleteEvents] = useState([]);
+  const [homeExpiryNotices, setHomeExpiryNotices] = useState({});
+  const [homeExpirySentNow, setHomeExpirySentNow] = useState({});
+  const [homeExpirySaving, setHomeExpirySaving] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -193,11 +199,17 @@ function App() {
       setHomeAthleteEvents,
       () => {}
     );
+    const unsubscribeExpiryNotices = subscribeExpiryNotices(
+      normalizedUsername,
+      setHomeExpiryNotices,
+      () => {}
+    );
 
     return () => {
       unsubscribePrograms();
       unsubscribeCompletions();
       unsubscribeEvents();
+      unsubscribeExpiryNotices();
     };
   }, [username, impersonationOrigin]);
 
@@ -920,7 +932,7 @@ function App() {
           </div>
           <div className="info-item">
             <div className="info-label">Data di Nascita</div>
-            <div className="info-value">{birthDate || '—'}</div>
+            <div className="info-value">{formatDateIt(birthDate) || '-'}</div>
           </div>
           <div className="info-item">
             <div className="info-label">Città di Nascita</div>
@@ -938,8 +950,8 @@ function App() {
       </div>
       <div className="profile-section">
         <h3>Visualizzazione Leader Board</h3>
-        <div className="toggle-row">
-          <label className="toggle-switch inline-toggle" style={{ marginTop: '0', display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+        <div className="toggle-row leaderboard-toggle-row">
+          <label className="toggle-switch inline-toggle">
             <input
               type="checkbox"
               checked={showUsernameOnLeaderboard}
@@ -948,13 +960,13 @@ function App() {
                 setShowUsernameOnLeaderboard(newVal); 
                 handleSave({ showUsernameOnLeaderboard: newVal }); 
               }}
-              aria-label="Mostra username su Leader Board"
+              aria-label="Mostra username sulla Leader Board"
             />
             <span className="toggle-slider"></span>
           </label>
-<div className="toggle-text" style={{ maxWidth: '260px', minWidth: '200px' }}>
-            <span style={{ fontSize: '14px', color: '#ccc', whiteSpace: 'nowrap' }}>Mostra username su Leader Board</span>
-            <p style={{ fontSize: '12px', color: '#888', marginTop: '4px', marginBottom: '0', whiteSpace: 'nowrap' }}>Se disattivato, verranno mostrati Nome e Cognome</p>
+          <div className="toggle-text leaderboard-toggle-text">
+            <span className="leaderboard-toggle-title">Mostra username sulla Leader Board</span>
+            <p className="leaderboard-toggle-hint">Se disattivato, verranno mostrati Nome e Cognome</p>
           </div>
         </div>
       </div>
@@ -1095,6 +1107,7 @@ function App() {
           <div className="section-title">Powerlifting Personal Record</div>
           <div className="me-total">
             <span className="me-total-value">{bottomNumbers[3] || '0'} kg</span>
+            <span className="me-total-value me-total-goal">{topNumbers[3] || '0'} kg</span>
           </div>
           {exercises.map((ex) => (
             <div key={ex.key} className={`pr-card ${expandedCard === ex.index ? 'expanded' : ''}`}>
@@ -1150,7 +1163,7 @@ function App() {
                         type="number"
                         value={topNumbers[ex.index]}
                         onChange={(e) => handleNumberChange(ex.index, true, e.target.value)}
-                        className="pr-input"
+                        className="pr-input pr-input-goal"
                         aria-label={`${ex.label} obiettivo`}
                       />
                     </div>
@@ -1362,6 +1375,26 @@ function App() {
     }
   };
 
+  const handleSendHomeExpiryNotice = async (program) => {
+    const normalizedUsername = normalizeUsername(username);
+    if (!program || !normalizedUsername || !coachKey) return;
+
+    setHomeExpirySaving(program.id);
+    try {
+      await sendExpiryNotice(
+        normalizedUsername,
+        program.id,
+        coachKey,
+        coachDisplayName || 'Marco Moscheo'
+      );
+      setHomeExpirySentNow((previous) => ({ ...previous, [program.id]: true }));
+    } catch {
+      setSaveError(true);
+    } finally {
+      setHomeExpirySaving(null);
+    }
+  };
+
   const renderProgrammazioniPage = () => (
     <Programmazioni
       userId={normalizeUsername(username)}
@@ -1388,6 +1421,16 @@ function App() {
     const isScheduledWorkoutDone = scheduledWorkoutKey
       ? Boolean(homeCompletions[scheduledWorkoutKey])
       : false;
+    const activeExpiryNotice = activeProgram ? homeExpiryNotices[activeProgram.id] : null;
+    const expiryNoticeSent = Boolean(activeExpiryNotice?.sentAt) && !activeExpiryNotice?.resolvedAt;
+    const expiryNoticeResolved = Boolean(activeExpiryNotice?.resolvedAt);
+    const homeExpirySent = Boolean(
+      activeProgram && (homeExpirySentNow[activeProgram.id] || expiryNoticeSent)
+    );
+    const showHomeExpiry = Boolean(activeProgram)
+      && isEndingSoon
+      && !expiryNoticeResolved
+      && (!expiryNoticeSent || Boolean(homeExpirySentNow[activeProgram.id]));
 
     return (
       <div className="home-page">
@@ -1422,7 +1465,33 @@ function App() {
           </button>
         </div>
 
-        {isEndingSoon && <ProgramEndingWarning className="home-ending-warning" />}
+        {isEndingSoon && (
+          coachKey ? (
+            showHomeExpiry && (
+              <button
+                type="button"
+                className={`home-ending-action${homeExpirySent ? ' sent' : ''}`}
+                onClick={() => handleSendHomeExpiryNotice(activeProgram)}
+                disabled={homeExpirySent || homeExpirySaving === activeProgram.id}
+                aria-pressed={homeExpirySent}
+              >
+                
+                <span className="home-ending-copy">
+                  {homeExpirySent ? (
+                    `Hai inviato a ${coachDisplayName || 'Marco Moscheo'} l'avviso di scheda finita`
+                  ) : (
+                    <>
+                      <span>Attenzione, stai per finire la tua scheda</span>
+                      <span className="home-ending-cta">Clicca qui per informare Marco</span>
+                    </>
+                  )}
+                </span>
+              </button>
+            )
+          ) : (
+            <ProgramEndingWarning className="home-ending-warning" />
+          )
+        )}
 
         {activeProgram && (
           <div className="next-workout-section">
@@ -1468,7 +1537,7 @@ function App() {
                 </label>
               </div>
             ) : (
-              <p className="next-workout-empty">Nessun allenamento in programma per questa scheda.</p>
+              <p className="next-workout-empty">Nessuna scheda inserita è attualmente in vigore</p>
             )}
           </div>
         )}

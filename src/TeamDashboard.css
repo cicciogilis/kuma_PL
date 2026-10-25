@@ -671,3 +671,11 @@
     display: inline-flex;
   }
 }
+
+.team-detail-event-invites {
+  margin: 12px 0 16px;
+}
+
+.team-detail-event-invites .program-event-notice:last-child {
+  margin-bottom: 0;
+}
