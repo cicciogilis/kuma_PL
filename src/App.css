@@ -2777,7 +2777,12 @@ body {
 html {
   scrollbar-width: thin;
   scrollbar-color: #3a3a3a #000;
-  background-color: #000;
+  /* NESSUN background-color qui, per favore. Con l'html colorato la
+     propagazione del nero di body verso il canvas si interrompe: body passa a
+     dipingere il proprio nero opaco come sfondo normale, che viene
+     dipinto DOPO i layer con z-index negativo e quindi copre lo sfondo
+     .app-background (z-index: -1), rendendolo invisibile.
+     Il nero della pagina resta garantito dal background-color di body. */
 }
 
 html::-webkit-scrollbar {
