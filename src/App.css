@@ -394,10 +394,10 @@ body {
   width: 32px;
   height: 32px;
   object-fit: contain;
-  mix-blend-mode: screen;
   padding: 2px;
   border: 2px solid #ff4136;
   border-radius: 8px;
+  background-color: transparent;
 }
 
 .pr-card-label {
@@ -779,6 +779,25 @@ body {
   overflow-wrap: anywhere;
 }
 
+.home-card-team {
+  width: 100%;
+  margin-top: 30px;
+}
+
+.home-event-invites {
+  width: 100%;
+  margin: -10px 0 0;
+}
+
+/* Con il banner gara in home, i riquadri sotto si avvicinano senza attaccarsi. */
+.home-event-invites + .home-grid {
+  margin-top: 24px;
+}
+
+.home-event-invites .program-event-notice:last-child {
+  margin-bottom: 0;
+}
+
 .programmazioni-page {
   display: flex;
   flex-direction: column;
@@ -801,10 +820,6 @@ body {
   background-repeat: no-repeat;
   opacity: 0.12;
   filter: grayscale(100%);
-}
-
-.img-no-black-bg {
-  mix-blend-mode: screen;
 }
 
 .other-pr-section {
@@ -1918,6 +1933,39 @@ body {
   min-width: 0;
   overflow-y: auto;
   padding: 18px 20px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a #111;
+}
+
+.dev-admin-detail::-webkit-scrollbar,
+.dev-admin-body::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dev-admin-detail::-webkit-scrollbar-track,
+.dev-admin-body::-webkit-scrollbar-track {
+  background-color: #111;
+  border-radius: 4px;
+}
+
+.dev-admin-detail::-webkit-scrollbar-thumb,
+.dev-admin-body::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
+  border: 2px solid #111;
+  border-radius: 4px;
+}
+
+.dev-admin-detail::-webkit-scrollbar-thumb:hover,
+.dev-admin-body::-webkit-scrollbar-thumb:hover {
+  background-color: #4f4f4f;
+}
+
+.dev-admin-detail::-webkit-scrollbar-button,
+.dev-admin-body::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .dev-admin-empty {
@@ -2424,6 +2472,59 @@ body {
   line-height: 1.4;
 }
 
+.dev-events-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.dev-events-copy {
+  min-width: 0;
+}
+
+.dev-events-box h4 {
+  margin-bottom: 4px;
+  color: #ff4136;
+}
+
+.dev-events-box p {
+  margin: 0;
+  color: #999;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.dev-events-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.dev-events-chip {
+  max-width: 100%;
+  padding: 3px 9px;
+  overflow: hidden;
+  color: #bbb;
+  background-color: #101010;
+  border: 1px solid #2c2c2c;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.dev-events-chip strong {
+  color: #eee;
+  font-weight: 600;
+}
+
+.dev-events-chip-more {
+  color: #888;
+  border-style: dashed;
+}
+
 @media (max-width: 760px) {
   .dev-admin-overlay {
     padding: 10px;
@@ -2491,6 +2592,8 @@ body {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: #3a3a3a #111;
   }
 
   .dev-admin-body.has-selected-user {
@@ -2591,6 +2694,11 @@ body {
     align-items: flex-start;
   }
 
+  .dev-events-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
   .dev-danger-button,
   .dev-primary-button,
   .dev-secondary-button {
@@ -2657,4 +2765,123 @@ body {
   .login-page form {
     margin-bottom: 10px;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Scrollbar in tema
+   Quella di default (bianca su Windows) stona con l'app scura: la scuriamo sia
+   sul documento sia su ogni contenitore scrollabile interno (pannelli, modali,
+   liste del Super Admin, textarea, tabelle). Le regole stanno qui e non in
+   index.css perché quel file non è importato da nessun componente.
+--------------------------------------------------------------------------- */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a #000;
+  background-color: #000;
+}
+
+html::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html::-webkit-scrollbar-track {
+  background-color: #000;
+}
+
+html::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
+  border: 2px solid #000;
+  border-radius: 6px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background-color: #4f4f4f;
+}
+
+html::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a #141414;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background-color: #141414;
+  border-radius: 6px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
+  border: 2px solid #141414;
+  border-radius: 6px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: #4f4f4f;
+}
+
+*::-webkit-scrollbar-corner {
+  background-color: #141414;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Checkbox in tema: quadratino grigio scuro con spunta rossa.
+   Sostituisce quella di sistema, che su Windows resta bianca.
+   Il selettore include [type="checkbox"] per battere le regole generiche
+   tipo ".campo input" che altrimenti ridimensionano e schiariscono il box.
+--------------------------------------------------------------------------- */
+input.checkbox-dark[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #4a4a4a;
+  border-radius: 4px;
+  background-color: #2b2b2b;
+  background-image: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+input.checkbox-dark[type="checkbox"]:hover {
+  border-color: #5f5f5f;
+}
+
+input.checkbox-dark[type="checkbox"]:checked {
+  border-color: #6a6a6a;
+  background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ff4136' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12.5l5.5 5.5L20 7'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 11px 11px;
+}
+
+input.checkbox-dark[type="checkbox"]:focus-visible {
+  outline: 2px solid #ff4136;
+  outline-offset: 2px;
+}
+
+input.checkbox-dark[type="checkbox"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }

@@ -226,6 +226,8 @@
   flex-grow: 1;
   overflow-y: auto;
   min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a #1a1a1a;
 }
 
 .weight-category {

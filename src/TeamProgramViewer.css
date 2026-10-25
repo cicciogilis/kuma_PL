@@ -1,0 +1,191 @@
+.team-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.72);
+}
+
+.team-viewer {
+  box-sizing: border-box;
+  width: min(1080px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 18px;
+  color: #eee;
+  background-color: #141414;
+  border: 1px solid #333;
+  border-radius: 14px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.65);
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a #141414;
+}
+
+.team-viewer::-webkit-scrollbar,
+.team-viewer-matrix::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.team-viewer::-webkit-scrollbar-track,
+.team-viewer-matrix::-webkit-scrollbar-track {
+  background-color: #141414;
+  border-radius: 4px;
+}
+
+.team-viewer::-webkit-scrollbar-thumb,
+.team-viewer-matrix::-webkit-scrollbar-thumb {
+  background-color: #3a3a3a;
+  border: 2px solid #141414;
+  border-radius: 4px;
+}
+
+.team-viewer::-webkit-scrollbar-thumb:hover,
+.team-viewer-matrix::-webkit-scrollbar-thumb:hover {
+  background-color: #4f4f4f;
+}
+
+.team-viewer::-webkit-scrollbar-button,
+.team-viewer-matrix::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.team-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.team-viewer-header h2 {
+  margin: 0;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  overflow-wrap: anywhere;
+}
+
+.team-viewer-close {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  color: #ccc;
+  background-color: #1f1f1f;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.team-viewer-close:hover {
+  color: #fff;
+  background-color: #2a2a2a;
+}
+
+.team-viewer-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  color: #888;
+  font-size: 13px;
+}
+
+.team-viewer-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: #1e1e1e;
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Tabella dei fondamentali: resta compatta e scrolla dentro la finestra,
+   così l'intestazione della scheda non esce mai dallo schermo. */
+.team-viewer-matrix {
+  max-height: min(58vh, 620px);
+  overflow: auto;
+  border: 1px solid #262626;
+  border-radius: 10px;
+  background-color: #101010;
+  scrollbar-width: thin;
+  scrollbar-color: #3a3a3a #101010;
+}
+
+.team-viewer-matrix .program-matrix thead th {
+  background-color: #1b1b1b;
+}
+
+.team-viewer-matrix .program-matrix-week th {
+  background-color: #161616;
+}
+
+.team-viewer-error {
+  margin: 0 0 10px;
+  padding: 7px 10px;
+  border: 1px solid #5a2a26;
+  border-radius: 8px;
+  background-color: rgba(255, 65, 54, 0.1);
+  color: #ff8b83;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.team-viewer-accessories {
+  margin-top: 16px;
+}
+
+.team-viewer-accessories h5 {
+  margin: 0 0 8px;
+  color: #bbb;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.team-viewer-accessory-day {
+  padding: 8px 10px;
+  border: 1px solid #242424;
+  border-radius: 8px;
+  background-color: #0f0f0f;
+  margin-bottom: 6px;
+}
+
+.team-viewer-accessory-title {
+  color: #38bdf8;
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+@media (max-width: 720px) {
+  .team-viewer-backdrop {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .team-viewer {
+    width: 100%;
+    max-height: 100vh;
+    padding: 14px;
+    border: 0;
+    border-radius: 0;
+  }
+
+  /* Su telefono niente scroll annidato: scorre tutta la finestra. */
+  .team-viewer-matrix {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background-color: transparent;
+  }
+}

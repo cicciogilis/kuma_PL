@@ -1,43 +1,33 @@
 import { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, set, get, update, onValue } from 'firebase/database';
+import { ref, set, get, update, onValue } from 'firebase/database';
 import './App.css';
 import bcrypt from 'bcryptjs';
 import PasswordInput from './PasswordInput';
-import { User, Trophy, Settings, Home, Layout, Dumbbell, ChevronDown, ChevronUp, Camera, Check, KeyRound, ShieldCheck, X } from 'lucide-react';
+import { User, Trophy, Settings, Home, Layout, Dumbbell, ChevronDown, ChevronUp, Camera, Check, KeyRound, ShieldCheck, X, UsersRound } from 'lucide-react';
 import LeaderboardWithSorting from './LeaderboardWithSorting';
 import Programmazioni from './Programmazioni';
 import ProgramDay from './ProgramDay';
 import ProgramEndingWarning from './ProgramEndingWarning';
+import ProgramEventNotices from './ProgramEventNotice';
 import WorkoutTools from './WorkoutTools';
 import DeveloperAdmin from './DeveloperAdmin';
+import TeamDashboard from './TeamDashboard';
+import { db } from './utils/firebase';
 import {
   getNextWorkout,
   isProgramEndingSoon,
-  loadCompletions,
-  loadPrograms,
-  persistCompletions,
-  persistPrograms,
   selectActiveProgram,
   updateLiftVariant,
   workoutKey,
 } from './utils/programData';
-
-// Configurazione Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyAd7n_WQD_jUUPSTftZ6jtu8xidMun-jzc",
-  authDomain: "sbd-ladder.firebaseapp.com",
-  databaseURL: "https://sbd-ladder-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "sbd-ladder",
-  storageBucket: "sbd-ladder.appspot.com",
-  messagingSenderId: "111032615204",
-  appId: "1:111032615204:web:c444cf45e5bd5733adb3b1",
-  measurementId: "G-GCFF96NMEW"
-};
-
-// Inizializza Firebase
-const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+import {
+  migrateLocalPrograms,
+  saveCompletions,
+  saveProgram,
+  subscribeCompletions,
+  subscribePrograms,
+} from './utils/programStore';
+import { subscribeAthleteEvents } from './utils/eventStore';
 
 // Chiave di accesso alle opzioni sviluppatore.
 // Può essere sovrascritta in produzione con VITE_DEV_ADMIN_KEY.
@@ -80,8 +70,16 @@ const buildLeaderboardData = (snapshot) => {
     const d = userData.d != null ? parseFloat(userData.d) : 0;
     const bw = userData.bw != null ? parseFloat(userData.bw) : 0;
 
-    // In classifica solo chi ha almeno una alzata principale valida
-    if (!(s > 0) && !(b > 0) && !(d > 0)) return;
+    const otherPRValues = toArray(userData.otherPR, 4);
+    const otherPRActive = toArray(userData.otherPRActive, 4, false).map(Boolean);
+    // Alzata opzionale "accesa" dall'atleta con un massimale valido.
+    const hasOptionalRecord = otherPRActive.some(
+      (active, index) => active && (parseFloat(otherPRValues[index]) || 0) > 0
+    );
+
+    // In classifica chi ha almeno una alzata principale valida oppure
+    // un'alzata opzionale attiva con massimale (per le classifiche dedicate).
+    if (!(s > 0) && !(b > 0) && !(d > 0) && !hasOptionalRecord) return;
 
     users.push({
       username: userData.username || '',
@@ -95,8 +93,8 @@ const buildLeaderboardData = (snapshot) => {
       bw: bw > 0 ? String(bw) : '',
       gender: userData.gender || '',
       birthDate: userData.birthDate || '',
-      otherPRValues: toArray(userData.otherPR, 4),
-      otherPRActive: toArray(userData.otherPRActive, 4, false).map(Boolean),
+      otherPRValues,
+      otherPRActive,
       total: (s + b + d) > 0 ? String(s + b + d) : '',
     });
   });
@@ -127,7 +125,7 @@ function App() {
   const [prDates, setPrDates] = useState(['', '', '']);
   const [prNotes, setPrNotes] = useState(['', '', '']);
   const [otherPRValues, setOtherPRValues] = useState(['', '', '', '']);
-  const [otherPRActive, setOtherPRActive] = useState([false, false, false, false]);
+  const [otherPRActive, setOtherPRActive] = useState([true, true, true, true]);
   const [otherPRDates, setOtherPRDates] = useState(['', '', '', '']);
   const [otherPRNotes, setOtherPRNotes] = useState(['', '', '', '']);
   const [otherPRGoalValues, setOtherPRGoalValues] = useState(['', '', '', '']);
@@ -146,6 +144,10 @@ function App() {
   const [isDevAdmin, setIsDevAdmin] = useState(false);
   const [showDevAdmin, setShowDevAdmin] = useState(false);
   const [impersonationOrigin, setImpersonationOrigin] = useState(null);
+  const [userRole, setUserRole] = useState('user');
+  const [coachKey, setCoachKey] = useState(null);
+  const [coachDisplayName, setCoachDisplayName] = useState('');
+  const [homeAthleteEvents, setHomeAthleteEvents] = useState([]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -167,12 +169,43 @@ function App() {
   }, [showSplash]);
 
   useEffect(() => {
-    if (currentPage !== 'Home' || !username) return;
+    if (!username) return undefined;
 
     const normalizedUsername = normalizeUsername(username);
-    setHomePrograms(loadPrograms(normalizedUsername));
-    setHomeCompletions(loadCompletions(normalizedUsername));
-  }, [currentPage, username]);
+    if (!normalizedUsername) return undefined;
+
+    // Una tantum: se il dispositivo ha programmazioni locali e il cloud è vuoto,
+    // vengono caricate su Firebase senza cancellare i dati locali.
+    migrateLocalPrograms(normalizedUsername).catch(() => {});
+
+    const unsubscribePrograms = subscribePrograms(
+      normalizedUsername,
+      (programs) => setHomePrograms(programs),
+      () => {}
+    );
+    const unsubscribeCompletions = subscribeCompletions(
+      normalizedUsername,
+      (completions) => setHomeCompletions(completions),
+      () => {}
+    );
+    const unsubscribeEvents = subscribeAthleteEvents(
+      normalizedUsername,
+      setHomeAthleteEvents,
+      () => {}
+    );
+
+    return () => {
+      unsubscribePrograms();
+      unsubscribeCompletions();
+      unsubscribeEvents();
+    };
+  }, [username, impersonationOrigin]);
+
+  useEffect(() => {
+    if (currentPage === 'Team' && userRole !== 'coach') {
+      setCurrentPage('Home');
+    }
+  }, [currentPage, userRole]);
 
   const handleLogin = async (e, savedUsername = null, savedPassword = null) => {
     if (e) e.preventDefault();
@@ -264,7 +297,7 @@ function App() {
         prDate: ['', '', ''],
         prNotes: ['', '', ''],
         otherPR: ['', '', '', ''],
-        otherPRActive: [false, false, false, false],
+        otherPRActive: [true, true, true, true],
         otherPRDate: ['', '', '', ''],
         otherPRNotes: ['', '', '', ''],
         otherPRGoalValues: ['', '', '', ''],
@@ -279,6 +312,7 @@ function App() {
         profilePhoto: '',
         firstLogin: true,
         role: 'user',
+        coachKey: null,
         disabled: false
       });
       await loadUserData(lowercaseUsername);
@@ -329,6 +363,23 @@ function App() {
       setBirthProvince(userData.birthProvince || '');
       setShowUsernameOnLeaderboard(userData.showUsernameOnLeaderboard || false);
       setProfilePhoto(userData.profilePhoto || '');
+      setUserRole(userData.role === 'coach' ? 'coach' : 'user');
+
+      const resolvedCoachKey = userData.coachKey || null;
+      setCoachKey(resolvedCoachKey);
+      if (resolvedCoachKey) {
+        const coachSnapshot = await get(ref(db, `users/${normalizeUsername(resolvedCoachKey)}`));
+        const coachData = coachSnapshot.val();
+        setCoachDisplayName(
+          coachData
+            ? ([coachData.firstName, coachData.lastName].filter(Boolean).join(' ')
+              || coachData.username
+              || resolvedCoachKey)
+            : resolvedCoachKey
+        );
+      } else {
+        setCoachDisplayName('');
+      }
     } catch (error) {
       console.error('Errore durante il caricamento del profilo:', error);
       alert('Impossibile caricare i dati del profilo. Controlla la connessione e riprova.');
@@ -573,6 +624,9 @@ function App() {
     setIsDevAdmin(false);
     setShowDevAdmin(false);
     setImpersonationOrigin(null);
+    setUserRole('user');
+    setCoachKey(null);
+    setCoachDisplayName('');
     setCurrentPage('Login');
   };
 
@@ -975,16 +1029,16 @@ function App() {
 
   const renderMePage = () => {
     const exercises = [
-      { key: 's', label: 'Squat', icon: <img src="/squat.png" alt="Squat" className="img-no-black-bg pr-card-icon-img" />, index: 0 },
-      { key: 'b', label: 'Bench Press', icon: <img src="/bench-press.png" alt="Bench Press" className="img-no-black-bg pr-card-icon-img" />, index: 1 },
-      { key: 'd', label: 'Deadlift', icon: <img src="/deadlift.jpg" alt="Deadlift" className="img-no-black-bg pr-card-icon-img" />, index: 2 },
+      { key: 's', label: 'Squat', icon: <img src="/squat.png" alt="Squat" className="pr-card-icon-img" />, index: 0 },
+      { key: 'b', label: 'Bench Press', icon: <img src="/bench-press.png" alt="Bench Press" className="pr-card-icon-img" />, index: 1 },
+      { key: 'd', label: 'Deadlift', icon: <img src="/deadlift.png" alt="Deadlift" className="pr-card-icon-img" />, index: 2 },
     ];
 
     const otherExercises = [
-      { key: 'dips', label: 'Dips', icon: <img src="/dips.jpg" alt="Dips" className="img-no-black-bg pr-card-icon-img" /> },
-      { key: 'chinup', label: 'Chin Up', icon: <img src="/chinup.png" alt="Chin Up" className="img-no-black-bg pr-card-icon-img" /> },
-      { key: 'military', label: 'Military Press', icon: <img src="/military-press.jpg" alt="Military Press" className="img-no-black-bg pr-card-icon-img" /> },
-      { key: 'trazioni', label: 'Trazioni', icon: <img src="/trazioni.png" alt="Trazioni" className="img-no-black-bg pr-card-icon-img" /> },
+      { key: 'dips', label: 'Dips', icon: <img src="/dips.png" alt="Dips" className="pr-card-icon-img" /> },
+      { key: 'chinup', label: 'Chin Up', icon: <img src="/chinup.png" alt="Chin Up" className="pr-card-icon-img" /> },
+      { key: 'military', label: 'Military Press', icon: <img src="/military-press.png" alt="Military Press" className="pr-card-icon-img" /> },
+      { key: 'trazioni', label: 'Trazioni', icon: <img src="/trazioni.png" alt="Trazioni" className="pr-card-icon-img" /> },
     ];
 
     const getPrPercentage = (index, isOther = false) => {
@@ -1277,9 +1331,8 @@ function App() {
     if (nextCompletions[key]) delete nextCompletions[key];
     else nextCompletions[key] = new Date().toISOString();
 
-    if (persistCompletions(normalizedUsername, nextCompletions)) {
-      setHomeCompletions(nextCompletions);
-    }
+    setHomeCompletions(nextCompletions);
+    saveCompletions(normalizedUsername, nextCompletions).catch(() => setSaveError(true));
   };
 
   const handleChangeHomeLiftVariant = (
@@ -1300,9 +1353,12 @@ function App() {
       liftIndex,
       variant
     );
+    const updatedProgram = nextPrograms.find((program) => program.id === programId);
 
-    if (persistPrograms(normalizedUsername, nextPrograms)) {
-      setHomePrograms(nextPrograms);
+    setHomePrograms(nextPrograms);
+    if (updatedProgram) {
+      saveProgram(normalizedUsername, { ...updatedProgram, athleteUpdatedAt: new Date().toISOString() })
+        .catch(() => setSaveError(true));
     }
   };
 
@@ -1310,6 +1366,15 @@ function App() {
     <Programmazioni
       userId={normalizeUsername(username)}
       prMaxes={prMaxes}
+      coachKey={coachKey}
+      coachName={coachDisplayName}
+    />
+  );
+
+  const renderTeamPage = () => (
+    <TeamDashboard
+      coachKey={normalizeUsername(username)}
+      coachName={[firstName, lastName].filter(Boolean).join(' ') || username}
     />
   );
 
@@ -1331,6 +1396,13 @@ function App() {
           <p className="home-subtitle">powered by Marco Moscheo</p>
         </div>
         <h2 className="home-welcome">Benvenuto, {username}!</h2>
+        {userRole === 'coach' && (
+          <button className="home-card home-card-team" onClick={() => setCurrentPage('Team')}>
+            <UsersRound size={48} />
+            <span>Team</span>
+          </button>
+        )}
+        <ProgramEventNotices events={homeAthleteEvents} className="home-event-invites" />
         <div className="home-grid">
           <button className="home-card" onClick={() => setCurrentPage('Me')}>
             <User size={48} />
@@ -1414,6 +1486,7 @@ function App() {
       {!showSplash && currentPage === 'Leaderboard' && renderLeaderboardPage()}
       {!showSplash && currentPage === 'Profile' && renderProfilePage()}
       {!showSplash && currentPage === 'Programmazioni' && renderProgrammazioniPage()}
+      {!showSplash && currentPage === 'Team' && userRole === 'coach' && renderTeamPage()}
       <WorkoutTools showLauncher={currentPage === 'Programmazioni'} />
       {currentPage !== 'Login' && (
         <div className="menu-bar">
@@ -1426,6 +1499,11 @@ function App() {
           <button onClick={() => setCurrentPage('Leaderboard')} aria-label="Leader Board" title="Leader Board" aria-current={currentPage === 'Leaderboard' ? 'page' : undefined}>
             <Trophy size={24} />
           </button>
+          {userRole === 'coach' && (
+            <button onClick={() => setCurrentPage('Team')} aria-label="Team" title="Team" aria-current={currentPage === 'Team' ? 'page' : undefined}>
+              <UsersRound size={24} />
+            </button>
+          )}
           <button onClick={() => setCurrentPage('Programmazioni')} aria-label="Programmazioni" title="Programmazioni" aria-current={currentPage === 'Programmazioni' ? 'page' : undefined}>
             <Layout size={24} />
           </button>

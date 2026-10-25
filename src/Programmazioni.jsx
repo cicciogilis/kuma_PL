@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react';
 import PropTypes from 'prop-types';
 import {
   AlertCircle,
+  BellRing,
   Calendar,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -13,6 +15,7 @@ import {
   Paperclip,
   Pencil,
   Plus,
+  StickyNote,
   Trash2,
 } from 'lucide-react';
 import './Programmazioni.css';
@@ -20,6 +23,7 @@ import ProgramBlocks from './ProgramBlocks';
 import ProgramDashboard from './ProgramDashboard';
 import ProgramDay from './ProgramDay';
 import ProgramEndingWarning from './ProgramEndingWarning';
+import ProgramEventNotices from './ProgramEventNotice';
 import {
   downloadTemplate,
   parseAccessoryText,
@@ -27,21 +31,34 @@ import {
 } from './utils/scheduleParser';
 import {
   formatDateIt,
+  getDaysUntilProgramEnd,
   isProgramEndingSoon,
-  loadCompletions,
-  loadPrograms,
-  persistCompletions,
-  persistPrograms,
+  parseLocalDate,
   todayIso,
   updateLiftVariant,
   workoutKey,
 } from './utils/programData';
+import {
+  deleteProgramFully,
+  migrateLocalPrograms,
+  saveCompletions,
+  saveProgramNote,
+  saveProgram,
+  sendExpiryNotice,
+  subscribeCompletions,
+  subscribeExpiryNotices,
+  subscribeProgramNotes,
+  subscribePrograms,
+} from './utils/programStore';
+import { subscribeAthleteEvents } from './utils/eventStore';
 import {
   accessoryNoteKeyFor,
   formatNumber,
   getPrForLift,
   noteKeyFor,
 } from './utils/programDisplay';
+
+const EXPIRY_NOTICE_DAYS = 14;
 
 const makeEmptyForm = () => ({
   name: 'Scheda Maggio',
@@ -262,6 +279,7 @@ const applyProgramEdit = (program, draft, complementariDraft = program.complemen
       }))
       .filter((day) => day.exercises.length > 0)
       .map((day, index) => ({ ...day, day: index + 1 })),
+    athleteUpdatedAt: new Date().toISOString(),
   };
 
   updated.stats = {
@@ -275,9 +293,16 @@ const applyProgramEdit = (program, draft, complementariDraft = program.complemen
   return updated;
 };
 
-const Programmazioni = ({ userId, prMaxes }) => {
-  const [programs, setPrograms] = useState(() => loadPrograms(userId));
-  const [completions, setCompletions] = useState(() => loadCompletions(userId));
+const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) => {
+  const [programs, setPrograms] = useState([]);
+  const [completions, setCompletions] = useState({});
+  const [programNotes, setProgramNotes] = useState({});
+  const [expiryNotices, setExpiryNotices] = useState({});
+  const [coachNoteDrafts, setCoachNoteDrafts] = useState({});
+  const [coachNoteStatus, setCoachNoteStatus] = useState({});
+  const [coachNoteSaving, setCoachNoteSaving] = useState(null);
+  const [expirySaving, setExpirySaving] = useState(null);
+  const [athleteEvents, setAthleteEvents] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState(makeEmptyForm);
   const [customComplementari, setCustomComplementari] = useState(makeEmptyCustomComplementari);
@@ -306,8 +331,6 @@ const Programmazioni = ({ userId, prMaxes }) => {
   const parseRequestId = useRef(0);
 
   useEffect(() => {
-    setPrograms(loadPrograms(userId));
-    setCompletions(loadCompletions(userId));
     setExpandedProgramId(null);
     setOpenWeeks({});
     setOpenAccessories({});
@@ -322,6 +345,32 @@ const Programmazioni = ({ userId, prMaxes }) => {
     setAddAccessoryExerciseDay(null);
     setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
     setAccessoryExerciseError('');
+    setCoachNoteDrafts({});
+    setCoachNoteStatus({});
+  }, [userId]);
+
+  // Programmazioni, completamenti, note e avvisi vivono su Firebase e si
+  // aggiornano in tempo reale (condivisi tra atleta e coach).
+  useEffect(() => {
+    if (!userId) return undefined;
+
+    migrateLocalPrograms(userId).catch(() => {});
+
+    const unsubPrograms = subscribePrograms(userId, setPrograms, () => {
+      setPageError('Impossibile aggiornare le programmazioni. Verifica la connessione.');
+    });
+    const unsubCompletions = subscribeCompletions(userId, setCompletions, () => {});
+    const unsubNotes = subscribeProgramNotes(userId, setProgramNotes, () => {});
+    const unsubNotices = subscribeExpiryNotices(userId, setExpiryNotices, () => {});
+    const unsubEvents = subscribeAthleteEvents(userId, setAthleteEvents, () => {});
+
+    return () => {
+      unsubPrograms();
+      unsubCompletions();
+      unsubNotes();
+      unsubNotices();
+      unsubEvents();
+    };
   }, [userId]);
 
   const resetForm = () => {
@@ -498,35 +547,33 @@ const Programmazioni = ({ userId, prMaxes }) => {
       stats: parsedSchedule.stats,
       weeks: parsedSchedule.weeks,
       complementari,
+      authorRole: 'athlete',
+      authorKey: userId,
     };
 
     const nextPrograms = [program, ...programs];
-    if (!persistPrograms(userId, nextPrograms)) {
-      setFormError('Salvataggio non riuscito: controlla lo spazio disponibile sul dispositivo.');
-      return;
-    }
-
     setPrograms(nextPrograms);
     setExpandedProgramId(program.id);
     setIsFormOpen(false);
     setPageError('');
     resetForm();
+    saveProgram(userId, program).catch(() => {
+      setPageError('Salvataggio non riuscito. Verifica la connessione e riprova.');
+    });
   };
 
-  const handleDelete = (program) => {
+  const handleDelete = async (program) => {
     const confirmed = window.confirm(`Eliminare la programmazione "${program.name}"?`);
     if (!confirmed) return;
 
-    const nextPrograms = programs.filter((item) => item.id !== program.id);
-    if (!persistPrograms(userId, nextPrograms)) {
+    try {
+      await deleteProgramFully(userId, program.id);
+      setPageError('');
+      if (expandedProgramId === program.id) setExpandedProgramId(null);
+      if (editingProgramId === program.id) handleCancelProgramEdit();
+    } catch {
       setPageError('Eliminazione non riuscita: riprova.');
-      return;
     }
-
-    setPrograms(nextPrograms);
-    setPageError('');
-    if (expandedProgramId === program.id) setExpandedProgramId(null);
-    if (editingProgramId === program.id) handleCancelProgramEdit();
   };
 
   const toggleWeek = (programId, weekNumber) => {
@@ -588,14 +635,12 @@ const Programmazioni = ({ userId, prMaxes }) => {
       (item.id === updatedProgram.id ? updatedProgram : item)
     );
 
-    if (!persistPrograms(userId, nextPrograms)) {
-      setProgramEditError('Salvataggio non riuscito: controlla lo spazio disponibile sul dispositivo.');
-      return;
-    }
-
     setPrograms(nextPrograms);
     setPageError('');
     handleCancelProgramEdit();
+    saveProgram(userId, updatedProgram).catch(() => {
+      setProgramEditError('Salvataggio non riuscito. Verifica la connessione e riprova.');
+    });
   };
 
   const handleNoteChange = (key, value) => {
@@ -742,9 +787,10 @@ const Programmazioni = ({ userId, prMaxes }) => {
     if (nextCompletions[key]) delete nextCompletions[key];
     else nextCompletions[key] = new Date().toISOString();
 
-    if (persistCompletions(userId, nextCompletions)) {
-      setCompletions(nextCompletions);
-    }
+    setCompletions(nextCompletions);
+    saveCompletions(userId, nextCompletions).catch(() => {
+      setPageError('Salvataggio dei completamenti non riuscito. Verifica la connessione.');
+    });
   };
 
   const handleChangeLiftVariant = (
@@ -763,13 +809,41 @@ const Programmazioni = ({ userId, prMaxes }) => {
       variant
     );
 
-    if (!persistPrograms(userId, nextPrograms)) {
-      setPageError('Salvataggio non riuscito: riprova.');
-      return;
-    }
-
+    const updatedProgram = nextPrograms.find((item) => item.id === programId);
     setPrograms(nextPrograms);
     setPageError('');
+    if (updatedProgram) {
+      saveProgram(userId, { ...updatedProgram, athleteUpdatedAt: new Date().toISOString() })
+        .catch(() => setPageError('Salvataggio non riuscito: riprova.'));
+    }
+  };
+
+  const handleSendExpiryNotice = (program) => {
+    if (!coachKey || expirySaving) return;
+    setExpirySaving(program.id);
+    sendExpiryNotice(userId, program.id, coachKey, coachName)
+      .catch(() => setPageError("Invio dell'avviso non riuscito. Riprova."))
+      .finally(() => setExpirySaving(null));
+  };
+
+  const handleCoachNoteChange = (programId, value) => {
+    setCoachNoteDrafts((previous) => ({ ...previous, [programId]: value }));
+    setCoachNoteStatus((previous) => (
+      previous[programId] ? { ...previous, [programId]: null } : previous
+    ));
+  };
+
+  const handleSaveCoachNote = async (programId) => {
+    const text = coachNoteDrafts[programId] ?? programNotes[programId]?.text ?? '';
+    setCoachNoteSaving(programId);
+    try {
+      await saveProgramNote(userId, programId, text, userId);
+      setCoachNoteStatus((previous) => ({ ...previous, [programId]: 'saved' }));
+    } catch {
+      setCoachNoteStatus((previous) => ({ ...previous, [programId]: 'error' }));
+    } finally {
+      setCoachNoteSaving(null);
+    }
   };
 
   const renderProgramCard = (program) => {
@@ -813,6 +887,19 @@ const Programmazioni = ({ userId, prMaxes }) => {
       accessoryExerciseForm.reps
     );
 
+    const programStart = parseLocalDate(program.startDate);
+    const daysUntilEnd = getDaysUntilProgramEnd(program);
+    const programStarted = Boolean(programStart && programStart <= new Date());
+    const notice = expiryNotices[program.id] || null;
+    const noticeSent = Boolean(notice?.sentAt) && !notice?.resolvedAt;
+    const showExpiryAction = Boolean(coachKey)
+      && !notice?.resolvedAt
+      && programStarted
+      && daysUntilEnd != null
+      && daysUntilEnd >= 0
+      && daysUntilEnd <= EXPIRY_NOTICE_DAYS;
+    const coachDisplayName = coachName || 'Marco';
+
     return (
       <div className={`program-card ${isExpanded ? 'expanded' : ''}`} key={program.id}>
         <div
@@ -829,7 +916,30 @@ const Programmazioni = ({ userId, prMaxes }) => {
           }}
         >
           <div className="program-card-main">
-            {isEndingSoon && <ProgramEndingWarning className="program-card-ending-warning" />}
+            {showExpiryAction ? (
+              <button
+                type="button"
+                className={`program-expiry-action${noticeSent ? ' sent' : ''}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  handleSendExpiryNotice(program);
+                }}
+                onKeyDown={(event) => event.stopPropagation()}
+                disabled={noticeSent || expirySaving === program.id}
+                aria-pressed={noticeSent}
+              >
+                {noticeSent
+                  ? <Check size={15} aria-hidden="true" />
+                  : <BellRing size={15} aria-hidden="true" />}
+                <span>
+                  {noticeSent
+                    ? `Hai inviato a ${coachDisplayName} l'avviso di scheda finita`
+                    : `Avvisa ${coachDisplayName} che la scheda sta finendo`}
+                </span>
+              </button>
+            ) : (
+              isEndingSoon && <ProgramEndingWarning className="program-card-ending-warning" />
+            )}
             <span className="program-card-name">{program.name}</span>
             <span className="program-card-meta">
               <span>
@@ -1264,6 +1374,39 @@ const Programmazioni = ({ userId, prMaxes }) => {
                 )}
               </div>
             )}
+
+            <section className="program-coach-note">
+              <div className="program-coach-note-head">
+                <span className="program-coach-note-title">
+                  <StickyNote size={15} aria-hidden="true" /> Note per l&apos;allenatore
+                </span>
+                {coachNoteStatus[program.id] === 'saved' && (
+                  <span className="program-coach-note-saved">Nota salvata</span>
+                )}
+                {coachNoteStatus[program.id] === 'error' && (
+                  <span className="program-coach-note-error" role="alert">Salvataggio non riuscito</span>
+                )}
+              </div>
+              <textarea
+                className="program-coach-note-input"
+                rows={3}
+                maxLength={1000}
+                placeholder="Scrivi una nota per il tuo allenatore..."
+                value={coachNoteDrafts[program.id] ?? programNotes[program.id]?.text ?? ''}
+                onChange={(event) => handleCoachNoteChange(program.id, event.target.value)}
+                aria-label={`Note per l'allenatore, ${program.name}`}
+              />
+              <div className="program-coach-note-actions">
+                <button
+                  type="button"
+                  className="program-btn-primary program-btn-small"
+                  disabled={coachNoteSaving === program.id}
+                  onClick={() => handleSaveCoachNote(program.id)}
+                >
+                  Salva nota
+                </button>
+              </div>
+            </section>
           </div>
         )}
       </div>
@@ -1274,6 +1417,8 @@ const Programmazioni = ({ userId, prMaxes }) => {
     <div className="programmazioni-page">
       <div className="programmazioni-container">
         <h1 className="programmazioni-title">Programmazioni</h1>
+
+        <ProgramEventNotices events={athleteEvents} />
 
         {pageError && (
           <div className="program-page-error" role="alert">
@@ -1643,7 +1788,7 @@ const Programmazioni = ({ userId, prMaxes }) => {
         )}
 
         <p className="program-local-note">
-          Le programmazioni sono salvate solo su questo dispositivo.
+          Le programmazioni sono sincronizzate sul tuo account e condivise con il tuo allenatore.
         </p>
       </div>
 
@@ -1741,6 +1886,8 @@ Programmazioni.propTypes = {
     bench: PropTypes.number,
     deadlift: PropTypes.number,
   }).isRequired,
+  coachKey: PropTypes.string,
+  coachName: PropTypes.string,
 };
 
 export default Programmazioni;

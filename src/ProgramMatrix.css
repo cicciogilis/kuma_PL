@@ -1,0 +1,277 @@
+/* Vista a tre colonne dei fondamentali: righe = Day, colonne = Squat/Panca/Stacco. */
+
+.program-matrix-wrap {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.program-matrix {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+  font-size: 13px;
+}
+
+.program-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 8px 10px;
+  border-bottom: 1px solid #333;
+  background-color: #151515;
+  color: #999;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.program-matrix thead th:first-child {
+  width: 108px;
+  border-top-left-radius: 8px;
+}
+
+.program-matrix thead th:last-child {
+  border-top-right-radius: 8px;
+}
+
+.program-matrix-week th {
+  padding: 7px 10px;
+  border-top: 1px solid #2a2a2a;
+  border-bottom: 1px solid #2a2a2a;
+  background-color: #101010;
+  text-align: left;
+}
+
+.program-matrix-week-title {
+  color: #ff4136;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.program-matrix-week-meta {
+  margin-left: 8px;
+  color: #777;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.program-matrix-day {
+  padding: 9px 10px;
+  border-bottom: 1px solid #262626;
+  text-align: left;
+  vertical-align: top;
+  font-weight: 400;
+}
+
+.program-matrix-day-label {
+  display: block;
+  color: #eee;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.program-matrix-weekday {
+  display: block;
+  margin-top: 1px;
+  color: #777;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.program-matrix-day .program-day-completion {
+  width: 24px;
+  height: 24px;
+  margin-top: 4px;
+}
+
+/* Vista in sola lettura (allenatore): spunta non cliccabile sul Day completato. */
+.program-matrix-done {
+  display: inline-flex;
+  margin-top: 4px;
+  color: #7bd88f;
+}
+
+.program-matrix-cell {
+  padding: 9px 10px;
+  border-bottom: 1px solid #262626;
+  border-left: 1px solid #262626;
+  vertical-align: top;
+}
+
+/* Nella tabella i blocchi stanno uno per riga: il "+" diventa rumore. */
+.program-matrix-cell .program-lift-blocks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.program-matrix-cell .program-block-plus {
+  display: none;
+}
+
+.program-matrix-cell.is-empty {
+  color: #3a3a3a;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.program-matrix-dash {
+  color: #3a3a3a;
+}
+
+.program-matrix-row.completed .program-matrix-day,
+.program-matrix-row.completed .program-matrix-cell {
+  background-color: rgba(123, 216, 143, 0.05);
+}
+
+.program-matrix-variant {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+/* Stili propri della tabella: non dipendono dal CSS di altre schermate. */
+.program-matrix-variant .program-variant-label {
+  color: #888;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.program-matrix-variant .program-variant-select {
+  padding: 3px 6px;
+  border: 1px solid #444;
+  border-radius: 5px;
+  background-color: #111;
+  color: #eee;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.program-matrix-variant .program-variant-select:focus-visible {
+  outline: 2px solid #ff4136;
+  outline-offset: 1px;
+}
+
+/* Variante in sola lettura (vista allenatore). */
+.program-matrix-variant-badge {
+  display: inline-block;
+  margin-top: 5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background-color: #1e1e1e;
+  color: #38bdf8;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.program-matrix-cell .program-lift-notes {
+  margin-top: 5px;
+  color: #8a8a8a;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.program-matrix-cell .program-note-input {
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 6px;
+}
+
+/* Su telefono la griglia diventa una scheda per ogni Day. */
+@media (max-width: 720px) {
+  .program-matrix thead {
+    display: none;
+  }
+
+  .program-matrix,
+  .program-matrix tbody,
+  .program-matrix tr,
+  .program-matrix th,
+  .program-matrix td {
+    display: block;
+    width: auto;
+  }
+
+  .program-matrix-week th {
+    padding: 12px 2px 6px;
+    border: 0;
+    background-color: transparent;
+  }
+
+  .program-matrix-row {
+    margin-bottom: 10px;
+    border: 1px solid #2c2c2c;
+    border-radius: 10px;
+    background-color: #151515;
+    overflow: hidden;
+  }
+
+  .program-matrix-row.completed {
+    border-color: #2f5c3f;
+  }
+
+  .program-matrix .program-matrix-day {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px;
+    border-bottom: 1px solid #2c2c2c;
+    background-color: #1b1b1b;
+  }
+
+  .program-matrix-day-label {
+    font-size: 13px;
+  }
+
+  .program-matrix-weekday {
+    margin-top: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background-color: #242424;
+    color: #aaa;
+  }
+
+  .program-matrix-day .program-day-completion {
+    margin-top: 0;
+  }
+
+  .program-matrix .program-matrix-cell {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 9px 10px;
+    border-left: 0;
+    border-bottom: 1px solid #242424;
+  }
+
+  .program-matrix .program-matrix-cell::before {
+    content: attr(data-label);
+    color: #777;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .program-matrix-cell.is-empty {
+    display: none;
+  }
+
+  .program-matrix-cell .program-note-input {
+    margin-top: 2px;
+  }
+}

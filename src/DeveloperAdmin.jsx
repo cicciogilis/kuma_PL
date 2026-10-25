@@ -16,6 +16,8 @@ import {
   X,
 } from 'lucide-react';
 import PasswordInput from './PasswordInput';
+import { deleteEvent, subscribeEvents } from './utils/eventStore';
+import { formatDateIt } from './utils/programData';
 
 const normalizeUsername = (value = '') => value.toLowerCase().replace(/\s/g, '');
 
@@ -30,6 +32,7 @@ const createForm = (user = {}) => ({
   gender: user.gender || '',
   bw: user.bw ?? '',
   role: user.role === 'coach' ? 'coach' : 'user',
+  coachKey: user.coachKey || '',
   showUsernameOnLeaderboard: Boolean(user.showUsernameOnLeaderboard),
   firstLogin: Boolean(user.firstLogin),
   disabled: Boolean(user.disabled),
@@ -59,9 +62,11 @@ function DeveloperAdmin({
   const listRef = useRef(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [newUsername, setNewUsername] = useState('');
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
+  const [eventsToDelete, setEventsToDelete] = useState([]);
 
   const currentKey = normalizeUsername(currentUsername);
   const selectedUser = users.find((user) => user.key === selectedKey) || null;
@@ -85,6 +90,7 @@ function DeveloperAdmin({
           gender: data.gender || '',
           bw: data.bw ?? '',
           role: data.role === 'coach' ? 'coach' : 'user',
+          coachKey: data.coachKey || '',
           showUsernameOnLeaderboard: Boolean(data.showUsernameOnLeaderboard),
           firstLogin: Boolean(data.firstLogin),
           disabled: Boolean(data.disabled),
@@ -112,6 +118,22 @@ function DeveloperAdmin({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (!selectedKey) {
+      setEventsToDelete([]);
+      return undefined;
+    }
+    return subscribeEvents(
+      (allEvents) => {
+        const userEvents = allEvents.filter(
+          (event) => event.athletes && event.athletes[selectedKey]
+        );
+        setEventsToDelete(userEvents);
+      },
+      () => setEventsToDelete([])
+    );
+  }, [selectedKey]);
+
   useLayoutEffect(() => {
     if (!selectedKey) {
       setMobileDetailTop(null);
@@ -137,6 +159,7 @@ function DeveloperAdmin({
     setForm(createForm(user));
     setNewPassword('');
     setConfirmPassword('');
+    setNewUsername('');
     setNotice('');
     setActionError('');
   };
@@ -146,6 +169,7 @@ function DeveloperAdmin({
     setForm(createForm());
     setNewPassword('');
     setConfirmPassword('');
+    setNewUsername('');
     setNotice('');
     setActionError('');
   };
@@ -184,6 +208,19 @@ function DeveloperAdmin({
       return;
     }
 
+    const cleanNewUsername = newUsername.trim();
+    const targetKey = cleanNewUsername ? normalizeUsername(cleanNewUsername) : selectedUser.key;
+    const isRename = Boolean(cleanNewUsername) && targetKey !== selectedUser.key;
+
+    if (isRename) {
+      const valid = /^[a-zA-Z0-9À-ÖØ-öø-ÿ _-]+$/.test(cleanNewUsername)
+        && normalizeUsername(cleanNewUsername).length >= 3;
+      if (!valid) {
+        setActionError("L'username deve avere almeno 3 caratteri e contenere solo lettere, numeri, spazi, '_' e '-'.");
+        return;
+      }
+    }
+
     setSaving(true);
     setNotice('');
     setActionError('');
@@ -197,11 +234,59 @@ function DeveloperAdmin({
         gender: form.gender || null,
         bw: form.bw === '' ? null : String(form.bw),
         role: form.role === 'coach' ? 'coach' : 'user',
+        coachKey: form.coachKey || null,
         showUsernameOnLeaderboard: form.showUsernameOnLeaderboard,
         firstLogin: form.firstLogin,
         disabled: form.disabled,
         profilePhoto: form.profilePhoto || null,
       };
+
+      if (isRename) {
+        const existing = await get(ref(db, `users/${targetKey}`));
+        if (existing.exists()) {
+          setActionError('Username già in uso. Scegli un altro username.');
+          return;
+        }
+        const currentSnapshot = await get(ref(db, `users/${selectedUser.key}`));
+        if (!currentSnapshot.exists()) {
+          setActionError('Utente non trovato. Aggiorna la lista e riprova.');
+          return;
+        }
+        await set(ref(db, `users/${targetKey}`), {
+          ...currentSnapshot.val(),
+          ...payload,
+          username: cleanNewUsername,
+        });
+        try {
+          await set(ref(db, `users/${selectedUser.key}`), null);
+        } catch (error) {
+          await set(ref(db, `users/${targetKey}`), null);
+          throw error;
+        }
+
+        if (selectedUser.key === currentKey && !isImpersonating) {
+          localStorage.setItem('username', cleanNewUsername);
+        }
+        setUsers((previous) =>
+          previous.map((user) =>
+            user.key === selectedUser.key
+              ? { ...user, ...payload, key: targetKey, username: cleanNewUsername }
+              : user
+          )
+        );
+        setSelectedKey(targetKey);
+        setNewUsername('');
+        setNotice('Account aggiornato e username modificato.');
+        if (selectedUser.key === currentKey) {
+          onCurrentUserUpdated?.();
+        }
+        return;
+      }
+
+      if (cleanNewUsername && cleanNewUsername !== selectedUser.username) {
+        payload.username = cleanNewUsername;
+        setNewUsername('');
+      }
       await update(ref(db, `users/${selectedUser.key}`), payload);
       setUsers((previous) =>
         previous.map((user) =>
@@ -368,7 +453,28 @@ function DeveloperAdmin({
 
   const coachCount = users.filter((user) => user.role === 'coach').length;
   const disabledCount = users.filter((user) => user.disabled).length;
+  const coachOptions = users.filter(
+    (user) => user.role === 'coach' && (!selectedUser || user.key !== selectedUser.key)
+  );
   const message = loadError || actionError || notice;
+
+  const handleDeleteEvents = async () => {
+    if (!eventsToDelete.length) return;
+    const count = eventsToDelete.length;
+    const confirmed = window.confirm(
+      `Eliminare definitivamente ${count} evento${count > 1 ? 'i' : ''} in cui è convocato @${selectedUser?.username}?\n\nGli eventi verranno rimossi anche per gli altri atleti convocati.`
+    );
+    if (!confirmed) return;
+    setActionError('');
+    setNotice('');
+    try {
+      await Promise.all(eventsToDelete.map((event) => deleteEvent(event.id)));
+      setEventsToDelete([]);
+      setNotice(`Eliminati ${count} evento${count > 1 ? 'i' : ''}.`);
+    } catch {
+      setActionError('Impossibile eliminare gli eventi. Verifica la connessione e riprova.');
+    }
+  };
 
   return (
     <div className="dev-admin-overlay">
@@ -734,10 +840,44 @@ function DeveloperAdmin({
                           <option value="coach">Allenatore</option>
                         </select>
                       </label>
+                      {form.role !== 'coach' && (
+                        <label className="dev-field">
+                          <span className="info-label">Allenatore assegnato</span>
+                          <select
+                            className="info-select"
+                            value={form.coachKey}
+                            onChange={(event) => updateField('coachKey', event.target.value)}
+                          >
+                            <option value="">Nessun allenatore</option>
+                            {coachOptions.map((coach) => (
+                              <option value={coach.key} key={coach.key}>
+                                {displayName(coach)} (@{coach.username})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      <label className="dev-field">
+                        <span className="info-label">Username attuale</span>
+                        <input
+                          className="info-input"
+                          type="text"
+                          value={selectedUser.username}
+                          readOnly
+                          disabled
+                        />
+                      </label>
+                      <label className="dev-field">
+                        <span className="info-label">Nuovo username</span>
+                        <input
+                          className="info-input"
+                          type="text"
+                          value={newUsername}
+                          onChange={(event) => setNewUsername(event.target.value)}
+                          placeholder="Lascia vuoto per non cambiarlo"
+                        />
+                      </label>
                     </div>
-                    <p className="dev-note">
-                      Le funzioni dedicate agli allenatori verranno abilitate nella prossima feature.
-                    </p>
                     <div className="dev-toggle-list">
                       <label className="dev-toggle-row">
                         <span>
@@ -793,6 +933,41 @@ function DeveloperAdmin({
                     </div>
                   </div>
                 </form>
+
+                <div className="dev-detail-section dev-events-box">
+                  <div className="dev-events-copy">
+                    <h4>Eventi</h4>
+                    <p>
+                      {eventsToDelete.length === 0
+                        ? 'Nessun evento assegnato a questo utente.'
+                        : `${eventsToDelete.length} evento${eventsToDelete.length > 1 ? 'i' : ''} in cui l'utente è convocato.`}
+                    </p>
+                    {eventsToDelete.length > 0 && (
+                      <div className="dev-events-chips">
+                        {eventsToDelete.slice(0, 4).map((event) => (
+                          <span className="dev-events-chip" key={event.id}>
+                            <strong>{event.name}</strong>
+                            {event.date ? ` · ${formatDateIt(event.date)}` : ''}
+                          </span>
+                        ))}
+                        {eventsToDelete.length > 4 && (
+                          <span className="dev-events-chip dev-events-chip-more">
+                            +{eventsToDelete.length - 4}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    className="dev-danger-button"
+                    onClick={handleDeleteEvents}
+                    disabled={saving || eventsToDelete.length === 0}
+                  >
+                    <Trash2 size={16} />
+                    Elimina eventi
+                  </button>
+                </div>
 
                 <div className="dev-detail-section dev-impersonate-box">
                   <div className="dev-impersonate-copy">
@@ -872,3 +1047,4 @@ DeveloperAdmin.propTypes = {
 };
 
 export default DeveloperAdmin;
+
