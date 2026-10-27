@@ -55,6 +55,21 @@ export const getSuggestedWeight = (rawWeight) => {
   return Math.ceil((rawWeight - 1e-6) / PROPOSAL_STEP) * PROPOSAL_STEP;
 };
 
+// Articolo per "calcolato su …": davanti a un numero che in italiano comincia
+// per vocale (1 "uno", 11 "undici", 8/80-89/800… "otto/ottanta/ottocento")
+// serve "sull'", altrimenti "sul ".
+export const formatSuArticolo = (reference) => {
+  const match = /^\d+/.exec(String(reference ?? '').trim());
+  if (!match) return 'sul ';
+
+  const value = Number(match[0]);
+  const startsWithVowel = value === 1
+    || value === 11
+    || String(value).startsWith('8');
+
+  return startsWithVowel ? "sull'" : 'sul ';
+};
+
 export const formatRpeReference = (base) => {
   if (!base) return '';
 

@@ -6,63 +6,35 @@
 <title>Fixture – banner scadenza</title>
 <link rel="stylesheet" href="../../src/Programmazioni.css">
 <style>
+  /* Solo il contenitore: le regole della card arrivano da Programmazioni.css
+     così la fixture verifica il CSS reale. */
   body {
     margin: 0;
-    padding: 20px;
+    padding: 12px;
     background: #000;
+    color: #fff;
     font-family: system-ui, -apple-system, sans-serif;
   }
   .app {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 20px;
-    box-sizing: border-box;
+    gap: 20px;
     width: 100%;
-    position: relative;
-    overflow: hidden;
+    box-sizing: border-box;
   }
-  /* Simula il card container */
   .program-card {
     background-color: #1a1a1a;
     border: 1px solid #333;
     border-radius: 10px;
-    overflow: visible;
     width: 100%;
-    max-width: 100%;
     box-sizing: border-box;
   }
-  .program-card-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 15px;
-    background-color: #222;
-    border-radius: 9px 9px 0 0;
-    cursor: pointer;
-  }
-  .program-card-main {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  .program-card-name {
-    overflow: hidden;
-    color: #fff;
-    font-size: 16px;
-    font-weight: 700;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .program-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    color: #999;
-    font-size: 12px;
+  .fake-icon {
+    display: block;
+    width: 17px;
+    height: 17px;
+    border-radius: 4px;
+    background: #555;
   }
 </style>
 </head>
@@ -75,20 +47,48 @@
           <span>Avvisa Marco Moscheo che la scheda sta finendo</span>
         </button>
         <span class="program-card-name">Scheda Test Pending</span>
-        <span class="program-card-meta">dal 05/10/2026 · 4 week</span>
+        <span class="program-card-meta">
+          <span>dal 05/10/2026</span>
+          <span>4 week</span>
+          <span class="program-card-badge">Massimali PR</span>
+        </span>
       </div>
+      <button type="button" class="program-edit-btn" aria-label="Modifica"><span class="fake-icon"></span></button>
+      <button type="button" class="program-delete-btn" aria-label="Elimina"><span class="fake-icon"></span></button>
+      <span class="program-card-chevron" aria-hidden="true"><span class="fake-icon"></span></span>
     </div>
   </div>
 
-  <div class="program-card" id="card-sent" style="margin-top: 20px;">
+  <div class="program-card" id="card-sent">
     <div class="program-card-header">
       <div class="program-card-main">
         <button type="button" class="program-expiry-action sent" disabled>
           <span>Hai inviato a Marco Moscheo l'avviso di scheda finita</span>
         </button>
         <span class="program-card-name">Scheda Test Sent</span>
-        <span class="program-card-meta">dal 04/10/2026 · 4 week</span>
+        <span class="program-card-meta">
+          <span>dal 04/10/2026</span>
+          <span>4 week</span>
+        </span>
       </div>
+      <button type="button" class="program-edit-btn" aria-label="Modifica"><span class="fake-icon"></span></button>
+      <button type="button" class="program-delete-btn" aria-label="Elimina"><span class="fake-icon"></span></button>
+      <span class="program-card-chevron" aria-hidden="true"><span class="fake-icon"></span></span>
+    </div>
+  </div>
+
+  <div class="program-card" id="card-plain">
+    <div class="program-card-header">
+      <div class="program-card-main">
+        <span class="program-card-name">Scheda senza banner</span>
+        <span class="program-card-meta">
+          <span>dal 04/10/2026</span>
+          <span>4 week</span>
+        </span>
+      </div>
+      <button type="button" class="program-edit-btn" aria-label="Modifica"><span class="fake-icon"></span></button>
+      <button type="button" class="program-delete-btn" aria-label="Elimina"><span class="fake-icon"></span></button>
+      <span class="program-card-chevron" aria-hidden="true"><span class="fake-icon"></span></span>
     </div>
   </div>
 </div>

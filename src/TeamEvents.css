@@ -245,8 +245,20 @@
   cursor: pointer;
 }
 
+/* Nome sulla prima riga, @username a capo sotto: la casella resta compatta
+   anche con username lunghi. */
+.team-events-athlete > span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .team-events-athlete small {
   color: #888;
+  font-size: 11px;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .team-events-error {

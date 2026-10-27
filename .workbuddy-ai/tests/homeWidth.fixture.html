@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixture – larghezza card Home vs Programmazioni</title>
+<link rel="stylesheet" href="../../src/App.css">
+<link rel="stylesheet" href="../../src/Programmazioni.css">
+<style>
+  body { margin: 0; background: #000; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+  .colonne { display: flex; flex-direction: column; gap: 0; }
+  .etichetta { color: #777; font-size: 11px; padding: 4px 8px; }
+</style>
+</head>
+<body>
+<div class="colonne">
+  <div class="etichetta">HOME</div>
+  <div class="home-page" id="home">
+    <div class="next-workout-section">
+      <div class="next-workout-label">Il tuo prossimo allenamento è</div>
+      <div class="next-workout-card">
+        <div class="program-day" id="home-day">
+          <div class="program-day-title">
+            <span class="program-day-title-text">Week 1 | Day 1</span>
+            <span class="program-day-weekday">Lunedì</span>
+          </div>
+          <div class="program-lift">
+            <div class="program-lift-head">
+              <span class="program-lift-name">Squat</span>
+            </div>
+          </div>
+        </div>
+        <label class="workout-complete-toggle">
+          <span>Hai fatto questo allenamento?</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="etichetta">PROGRAMMAZIONI</div>
+  <div class="programmazioni-page">
+    <div class="programmazioni-container" id="programmi">
+      <div class="program-card">
+        <div class="program-card-header">
+          <div class="program-card-main">
+            <span class="program-card-name">Scheda</span>
+          </div>
+        </div>
+        <div class="program-card-body">
+          <div class="program-week">
+            <div class="program-week-content">
+              <div class="program-day" id="program-day">
+                <div class="program-day-title">
+                  <span class="program-day-title-text">Week 1 | Day 1</span>
+                  <span class="program-day-weekday">Lunedì</span>
+                </div>
+                <div class="program-lift">
+                  <div class="program-lift-head">
+                    <span class="program-lift-name">Squat</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

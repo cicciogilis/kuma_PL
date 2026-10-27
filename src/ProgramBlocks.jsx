@@ -4,6 +4,7 @@ import {
   formatBlock,
   formatRawWeight,
   formatRpeReference,
+  formatSuArticolo,
   formatSuggestedWeight,
   getSuggestedWeight,
 } from './utils/programDisplay';
@@ -26,7 +27,7 @@ const ProgramBlocks = ({ blocks = [], max = null, accessory = false }) => {
         const reference = block.percentBase
           ? formatRpeReference(block.percentBase)
           : '';
-        const referencePrefix = /^1(?:\s|$)/.test(reference) ? "sull'" : 'sul ';
+        const referencePrefix = formatSuArticolo(reference);
 
         return (
           <span className="program-block-group" key={`block-${blockIndex}`}>

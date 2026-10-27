@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixture – complementari e banner modifica</title>
+<link rel="stylesheet" href="../../src/Programmazioni.css">
+<style>
+  body { margin: 0; padding: 12px; background: #000; color: #fff; font-family: system-ui, -apple-system, sans-serif; }
+  .stack { display: flex; flex-direction: column; gap: 18px; }
+  .program-card { background-color: #1a1a1a; border: 1px solid #333; border-radius: 10px; }
+  .icona { display: block; width: 17px; height: 17px; border-radius: 3px; background: #555; }
+  .icona-piccola { display: block; width: 15px; height: 15px; border-radius: 3px; background: #555; }
+</style>
+</head>
+<body>
+<div class="stack">
+  <div class="program-card">
+    <div class="program-card-body">
+      <p class="program-hint" id="hint">
+        Formati supportati: .xls e .xlsx (max 5 MB).
+        <br>
+        I complementari vengono letti dalla sezione con i giorni; Squat, Panca e Stacco vengono esclusi.
+      </p>
+
+      <div class="program-accessories" id="accessori">
+        <div class="program-week-toggle open" id="header-complementari">
+          <span class="program-week-title">Complementari</span>
+          <span class="program-week-meta">2 Day</span>
+          <span class="program-week-chevron"><span class="icona"></span></span>
+        </div>
+
+        <div class="program-accessories-content">
+          <div class="program-accessory-day" id="giorno">
+            <div class="program-week-toggle program-accessory-day-toggle open" id="giorno-head">
+              <span class="program-accessory-day-title">Upper</span>
+              <span class="program-accessory-day-order">Day 1</span>
+              <span class="program-day-weekday">Lunedì</span>
+              <span class="program-week-meta">1 Esercizio</span>
+              <button type="button" class="program-edit-btn" id="matita-giorno">
+                <span class="icona"></span>
+              </button>
+              <button type="button" class="program-delete-btn" id="cestino-giorno">
+                <span class="icona"></span>
+              </button>
+              <span class="program-week-chevron"><span class="icona"></span></span>
+            </div>
+
+            <div class="program-accessory-list">
+              <div class="program-lift">
+                <div class="program-lift-head">
+                  <span class="program-lift-name program-lift-name-accessory">Leg curl</span>
+                  <span class="program-accessory-actions">
+                    <button type="button" class="program-edit-btn" id="matita-esercizio">
+                      <span class="icona-piccola"></span>
+                    </button>
+                    <button type="button" class="program-delete-btn" id="cestino-esercizio">
+                      <span class="icona-piccola"></span>
+                    </button>
+                  </span>
+                </div>
+                <textarea class="program-note-input" rows="2">nota</textarea>
+              </div>
+
+              <form class="program-accessory-add-card" id="form-modifica">
+                <div class="program-accessory-form-grid">
+                  <label class="program-field program-field-full">
+                    <span class="program-label">Nome esercizio</span>
+                    <input class="program-input" type="text" value="Leg curl">
+                  </label>
+                  <label class="program-field">
+                    <span class="program-label">Serie</span>
+                    <input class="program-input" type="text" value="3 + 4">
+                  </label>
+                  <label class="program-field">
+                    <span class="program-label">Rep</span>
+                    <input class="program-input" type="text" value="4 + 2">
+                  </label>
+                </div>
+                <div class="program-accessory-add-actions">
+                  <button type="button" class="program-btn-secondary program-btn-small">Annulla</button>
+                  <button type="submit" class="program-btn-primary program-btn-small">Salva complementare</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="program-note-edit-bar" id="banner-giallo">
+        <div class="program-note-edit-actions">
+          <button type="button" class="program-btn-secondary program-btn-small" id="btn-annulla">Annulla</button>
+          <button type="button" class="program-btn-primary program-btn-small" id="btn-salva">Salva le modifiche</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

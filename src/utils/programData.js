@@ -111,6 +111,9 @@ export const getDaysUntilProgramEnd = (program, today = new Date()) => {
   return Math.round((startOfDay(end).getTime() - startOfDay(today).getTime()) / DAY_MS);
 };
 
+// L'avviso di scheda in scadenza compare solo nell'ultima settimana.
+export const EXPIRY_NOTICE_DAYS = 7;
+
 export const isProgramEndingSoon = (program, today = new Date()) => {
   const start = parseLocalDate(program?.startDate);
   if (!start) return false;
@@ -119,7 +122,7 @@ export const isProgramEndingSoon = (program, today = new Date()) => {
   if (start.getTime() > todayStart.getTime()) return false;
 
   const days = getDaysUntilProgramEnd(program, todayStart);
-  return days != null && days >= 0 && days <= 14;
+  return days != null && days >= 0 && days <= EXPIRY_NOTICE_DAYS;
 };
 
 export const getNextWorkout = (program, today = new Date()) => {

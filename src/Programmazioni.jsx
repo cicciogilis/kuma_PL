@@ -4,7 +4,6 @@ import {
   AlertCircle,
   BellRing,
   Calendar,
-  Check,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -30,6 +29,7 @@ import {
   parseScheduleFile,
 } from './utils/scheduleParser';
 import {
+  EXPIRY_NOTICE_DAYS,
   formatDateIt,
   getDaysUntilProgramEnd,
   isProgramEndingSoon,
@@ -50,6 +50,13 @@ import {
   subscribeProgramNotes,
   subscribePrograms,
 } from './utils/programStore';
+import {
+  buildAccessoryBlocks,
+  formatAccessoryCount,
+  formatAccessoryReps,
+  formatAccessorySeries,
+  sameAccessoryBlocks,
+} from './utils/accessoryForm';
 import { subscribeAthleteEvents } from './utils/eventStore';
 import {
   accessoryNoteKeyFor,
@@ -57,8 +64,6 @@ import {
   getPrForLift,
   noteKeyFor,
 } from './utils/programDisplay';
-
-const EXPIRY_NOTICE_DAYS = 14;
 
 const makeEmptyForm = () => ({
   name: 'Scheda Maggio',
@@ -166,47 +171,128 @@ const prepareComplementariForEdit = (days) =>
         .filter((exercise) => exercise && !isFundamentalAccessory(exercise)),
     }));
 
-const splitAccessoryParts = (value) =>
-  String(value || '')
-    .split('+')
-    .map((part) => part.trim())
-    .filter(Boolean);
+// Form condiviso tra "aggiungi complementare" e modifica di un complementare
+// esistente: cambia solo l'etichetta del pulsante di conferma.
+const AccessoryExerciseForm = ({
+  formId,
+  values,
+  error,
+  submitLabel,
+  onChange,
+  onSubmit,
+  onCancel,
+}) => {
+  const preview = buildAccessoryBlocks(values.series, values.reps);
 
-const buildAccessoryBlocks = (seriesInput, repsInput) => {
-  const seriesText = String(seriesInput || '').trim();
-  const repsText = String(repsInput || '').trim();
-  if (!seriesText) return [];
+  return (
+    <form className="program-accessory-add-card" id={formId} onSubmit={onSubmit} noValidate>
+      <div className="program-accessory-form-grid">
+        <label className="program-field program-field-full">
+          <span className="program-label">Nome esercizio</span>
+          <input
+            className="program-input"
+            type="text"
+            value={values.name}
+            onChange={(event) => onChange('name', event.target.value)}
+            placeholder="Es. Leg curl"
+            maxLength={60}
+          />
+        </label>
 
-  if (/[x×]/i.test(seriesText)) {
-    const parsed = parseAccessoryText(`Esercizio ${seriesText.replace(/×/g, 'x')}`);
-    return parsed?.blocks || [];
-  }
+        <label className="program-field">
+          <span className="program-label">Serie</span>
+          <input
+            className="program-input"
+            type="text"
+            value={values.series}
+            onChange={(event) => onChange('series', event.target.value)}
+            placeholder="3 + 4 oppure 3x4 + 4x2"
+            maxLength={80}
+            aria-label="Serie"
+          />
+          <span className="program-hint program-accessory-field-hint">
+            Scrivi 3 + 4, oppure l&apos;intera prescrizione 3x4 + 4x2.
+          </span>
+        </label>
 
-  const seriesParts = splitAccessoryParts(seriesText);
-  const repsParts = splitAccessoryParts(repsText);
-  if (!seriesParts.length || !repsParts.length) return [];
+        <label className="program-field">
+          <span className="program-label">Rep</span>
+          <input
+            className="program-input"
+            type="text"
+            value={values.reps}
+            onChange={(event) => onChange('reps', event.target.value)}
+            placeholder="4 + 2"
+            maxLength={80}
+            aria-label="Rep"
+          />
+          <span className="program-hint program-accessory-field-hint">
+            Una voce per ogni blocco di serie.
+          </span>
+        </label>
 
-  const makeBlock = (setsPart, reps) => ({
-    sets: Number.parseInt(setsPart, 10),
-    reps: String(reps).trim(),
-    rpe: null,
-    percent: null,
-    percentBase: null,
-    note: '',
-  });
+        <label className="program-field program-field-full">
+          <span className="program-label">Note</span>
+          <input
+            className="program-input"
+            type="text"
+            value={values.notes}
+            onChange={(event) => onChange('notes', event.target.value)}
+            placeholder="Es. fermo 1 secondo"
+            maxLength={200}
+          />
+        </label>
+      </div>
 
-  let blocks = [];
-  if (seriesParts.length === 1) {
-    blocks = repsParts.map((reps) => makeBlock(seriesParts[0], reps));
-  } else if (repsParts.length === 1) {
-    blocks = seriesParts.map((sets) => makeBlock(sets, repsParts[0]));
-  } else if (seriesParts.length === repsParts.length) {
-    blocks = seriesParts.map((sets, index) => makeBlock(sets, repsParts[index]));
-  }
+      {preview.length > 0 && (
+        <div className="program-accessory-add-preview">
+          <span className="program-label">Anteprima</span>
+          <div className="program-lift">
+            <div className="program-lift-head">
+              <span className="program-lift-name program-lift-name-accessory">
+                {values.name.trim() || 'Nuovo complementare'}
+              </span>
+              <ProgramBlocks blocks={preview} accessory />
+            </div>
+          </div>
+        </div>
+      )}
 
-  return blocks.filter((block) =>
-    Number.isFinite(block.sets) && block.sets > 0 && block.reps
+      {error && (
+        <p className="program-error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <div className="program-accessory-add-actions">
+        <button
+          type="button"
+          className="program-btn-secondary program-btn-small"
+          onClick={onCancel}
+        >
+          Annulla
+        </button>
+        <button type="submit" className="program-btn-primary program-btn-small">
+          {submitLabel}
+        </button>
+      </div>
+    </form>
   );
+};
+
+AccessoryExerciseForm.propTypes = {
+  formId: PropTypes.string.isRequired,
+  values: PropTypes.shape({
+    name: PropTypes.string,
+    series: PropTypes.string,
+    reps: PropTypes.string,
+    notes: PropTypes.string,
+  }).isRequired,
+  error: PropTypes.string,
+  submitLabel: PropTypes.string.isRequired,
+  onChange: PropTypes.func.isRequired,
+  onSubmit: PropTypes.func.isRequired,
+  onCancel: PropTypes.func.isRequired,
 };
 
 const formatMaxes = (maxes) => {
@@ -321,9 +407,11 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
   const [programEditError, setProgramEditError] = useState('');
   const [accessoryDraft, setAccessoryDraft] = useState([]);
   const [isAddAccessoryDayOpen, setIsAddAccessoryDayOpen] = useState(false);
+  const [editingAccessoryDay, setEditingAccessoryDay] = useState(null);
   const [accessoryDayForm, setAccessoryDayForm] = useState(makeEmptyAccessoryDayForm);
   const [accessoryDayError, setAccessoryDayError] = useState('');
-  const [addAccessoryExerciseDay, setAddAccessoryExerciseDay] = useState(null);
+  // Un solo form aperto per volta: { day, index } dove `index` null = nuovo complementare.
+  const [accessoryFormTarget, setAccessoryFormTarget] = useState(null);
   const [accessoryExerciseForm, setAccessoryExerciseForm] = useState(
     makeEmptyAccessoryExerciseForm
   );
@@ -340,9 +428,10 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
     setProgramEditError('');
     setAccessoryDraft([]);
     setIsAddAccessoryDayOpen(false);
+    setEditingAccessoryDay(null);
     setAccessoryDayForm(makeEmptyAccessoryDayForm());
     setAccessoryDayError('');
-    setAddAccessoryExerciseDay(null);
+    setAccessoryFormTarget(null);
     setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
     setAccessoryExerciseError('');
     setCoachNoteDrafts({});
@@ -603,9 +692,10 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
     setProgramEditError('');
     setOpenAccessories((previous) => ({ ...previous, [program.id]: true }));
     setIsAddAccessoryDayOpen(false);
+    setEditingAccessoryDay(null);
     setAccessoryDayForm(makeEmptyAccessoryDayForm());
     setAccessoryDayError('');
-    setAddAccessoryExerciseDay(null);
+    setAccessoryFormTarget(null);
     setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
     setAccessoryExerciseError('');
   };
@@ -616,9 +706,10 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
     setProgramEditError('');
     setAccessoryDraft([]);
     setIsAddAccessoryDayOpen(false);
+    setEditingAccessoryDay(null);
     setAccessoryDayForm(makeEmptyAccessoryDayForm());
     setAccessoryDayError('');
-    setAddAccessoryExerciseDay(null);
+    setAccessoryFormTarget(null);
     setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
     setAccessoryExerciseError('');
   };
@@ -653,14 +744,57 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
   };
 
   const handleOpenAddAccessoryDay = () => {
+    setEditingAccessoryDay(null);
     setAccessoryDayForm(makeEmptyAccessoryDayForm());
+    setAccessoryDayError('');
+    setIsAddAccessoryDayOpen(true);
+  };
+
+  // Stesso modale dell'inserimento, ma con i campi precompilati: cambia solo il submit.
+  const handleOpenEditAccessoryDay = (day) => {
+    setEditingAccessoryDay(day.day);
+    setAccessoryDayForm({
+      name: day.name || `Day ${day.day}`,
+      weekday: day.weekday || '',
+    });
     setAccessoryDayError('');
     setIsAddAccessoryDayOpen(true);
   };
 
   const handleCloseAddAccessoryDay = () => {
     setIsAddAccessoryDayOpen(false);
+    setEditingAccessoryDay(null);
     setAccessoryDayError('');
+  };
+
+  const handleDeleteAccessoryDay = (day) => {
+    const label = day.name || `Day ${day.day}`;
+    if (!window.confirm(`Eliminare il giorno complementari "${label}" e i suoi esercizi?`)) {
+      return;
+    }
+
+    // Il salvataggio rinumera i giorni da 1: le note (indicizzate per giorno ed
+    // esercizio) vanno rimappate sulla nuova numerazione, altrimenti si perdono.
+    const remaining = accessoryDraft.filter((item) => Number(item.day) !== Number(day.day));
+    const nextNotes = {};
+    Object.entries(noteDraft).forEach(([key, value]) => {
+      if (!key.startsWith('accessory-')) nextNotes[key] = value;
+    });
+    remaining.forEach((item, dayIndex) => {
+      (item.exercises || []).forEach((exercise, exerciseIndex) => {
+        const oldKey = accessoryNoteKeyFor(item.day, exerciseIndex);
+        nextNotes[accessoryNoteKeyFor(dayIndex + 1, exerciseIndex)] =
+          noteDraft[oldKey] ?? exercise.notes ?? '';
+      });
+    });
+
+    setAccessoryDraft(remaining.map((item, dayIndex) => ({ ...item, day: dayIndex + 1 })));
+    setNoteDraft(nextNotes);
+    if (accessoryFormTarget && Number(accessoryFormTarget.day) === Number(day.day)) {
+      setAccessoryFormTarget(null);
+      setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
+      setAccessoryExerciseError('');
+    }
   };
 
   const handleAddAccessoryDay = (event) => {
@@ -673,6 +807,21 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
     }
 
     if (!editingProgramId) return;
+
+    if (editingAccessoryDay != null) {
+      setAccessoryDraft((previous) =>
+        previous.map((day) =>
+          Number(day.day) === Number(editingAccessoryDay)
+            ? { ...day, name, weekday: accessoryDayForm.weekday }
+            : day
+        )
+      );
+      setAccessoryDayForm(makeEmptyAccessoryDayForm());
+      setAccessoryDayError('');
+      setEditingAccessoryDay(null);
+      setIsAddAccessoryDayOpen(false);
+      return;
+    }
 
     const nextDay = accessoryDraft.reduce(
       (max, day) => Math.max(max, Number(day.day) || 0),
@@ -698,19 +847,72 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
   };
 
   const handleToggleAddAccessoryExercise = (dayNumber) => {
-    if (addAccessoryExerciseDay === dayNumber) {
-      setAddAccessoryExerciseDay(null);
+    const isAddOpen = accessoryFormTarget
+      && Number(accessoryFormTarget.day) === Number(dayNumber)
+      && accessoryFormTarget.index == null;
+
+    if (isAddOpen) {
+      setAccessoryFormTarget(null);
       setAccessoryExerciseError('');
       return;
     }
 
     setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
     setAccessoryExerciseError('');
-    setAddAccessoryExerciseDay(dayNumber);
+    setAccessoryFormTarget({ day: dayNumber, index: null });
+  };
+
+  // Precompila il form dell'esercizio: il "salva" sostituisce quello esistente.
+  const handleOpenEditAccessoryExercise = (dayNumber, exercise, exerciseIndex) => {
+    setAccessoryExerciseForm({
+      name: exercise.name || '',
+      series: formatAccessorySeries(exercise.blocks),
+      reps: formatAccessoryReps(exercise.blocks),
+      notes: exercise.notes || '',
+    });
+    setAccessoryExerciseError('');
+    setAccessoryFormTarget({ day: dayNumber, index: exerciseIndex });
+  };
+
+  const handleDeleteAccessoryExercise = (dayNumber, exerciseIndex, exerciseName) => {
+    if (!window.confirm(`Eliminare il complementare "${exerciseName || 'senza nome'}"?`)) {
+      return;
+    }
+
+    const day = accessoryDraft.find((item) => Number(item.day) === Number(dayNumber));
+    if (!day) return;
+
+    const exercises = day.exercises || [];
+    const remaining = exercises.filter((_, index) => index !== exerciseIndex);
+
+    // Le note sono indicizzate per esercizio: rimappate sulla nuova sequenza.
+    const nextNotes = { ...noteDraft };
+    Object.keys(nextNotes)
+      .filter((key) => key.startsWith(`accessory-${dayNumber}-`))
+      .forEach((key) => delete nextNotes[key]);
+    let newIndex = 0;
+    exercises.forEach((exercise, oldIndex) => {
+      if (oldIndex === exerciseIndex) return;
+      nextNotes[accessoryNoteKeyFor(dayNumber, newIndex)] =
+        noteDraft[accessoryNoteKeyFor(dayNumber, oldIndex)] ?? exercise.notes ?? '';
+      newIndex += 1;
+    });
+
+    setAccessoryDraft((previous) =>
+      previous.map((item) =>
+        Number(item.day) === Number(dayNumber) ? { ...item, exercises: remaining } : item
+      )
+    );
+    setNoteDraft(nextNotes);
+    if (accessoryFormTarget && Number(accessoryFormTarget.day) === Number(dayNumber)) {
+      setAccessoryFormTarget(null);
+      setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
+      setAccessoryExerciseError('');
+    }
   };
 
   const handleCancelAddAccessoryExercise = () => {
-    setAddAccessoryExerciseDay(null);
+    setAccessoryFormTarget(null);
     setAccessoryExerciseError('');
   };
 
@@ -749,23 +951,40 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
       return;
     }
 
-    const exerciseIndex = (targetDay.exercises || []).length;
-    const newExercise = {
+    const editingIndex = accessoryFormTarget
+      && Number(accessoryFormTarget.day) === dayNumber
+      && accessoryFormTarget.index != null
+      ? accessoryFormTarget.index
+      : null;
+    const existing = editingIndex != null ? (targetDay.exercises || [])[editingIndex] : null;
+
+    // Se serie e rep non cambiano si tengono i blocchi originali, così non si
+    // perdono percentuali, RPE e note di prescrizione già presenti.
+    const blocksToUse = existing && sameAccessoryBlocks(blocks, existing.blocks)
+      ? existing.blocks
+      : blocks;
+
+    const nextExercise = {
+      ...(existing || {}),
       name,
-      blocks,
+      blocks: blocksToUse,
       notes: accessoryExerciseForm.notes.trim(),
     };
 
+    const exerciseIndex = editingIndex ?? (targetDay.exercises || []).length;
+
     setAccessoryDraft((previous) =>
-      previous.map((day) =>
-        Number(day.day) === dayNumber
-          ? { ...day, exercises: [...(day.exercises || []), newExercise] }
-          : day
-      )
+      previous.map((day) => {
+        if (Number(day.day) !== dayNumber) return day;
+        const exercises = [...(day.exercises || [])];
+        if (editingIndex != null) exercises[editingIndex] = nextExercise;
+        else exercises.push(nextExercise);
+        return { ...day, exercises };
+      })
     );
     setNoteDraft((previous) => ({
       ...previous,
-      [accessoryNoteKeyFor(dayNumber, exerciseIndex)]: newExercise.notes,
+      [accessoryNoteKeyFor(dayNumber, exerciseIndex)]: nextExercise.notes,
     }));
 
     if (editingProgramId) {
@@ -777,7 +996,7 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
 
     setAccessoryExerciseForm(makeEmptyAccessoryExerciseForm());
     setAccessoryExerciseError('');
-    setAddAccessoryExerciseDay(null);
+    setAccessoryFormTarget(null);
   };
 
   const handleToggleWorkoutCompleted = (programId, weekNumber, dayNumber) => {
@@ -882,10 +1101,6 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
     const showAccessories = isEditingNotes || complementari.length > 0;
     const isAccessoriesOpen = Boolean(openAccessories[program.id]);
     const accessoriesContentId = `accessories-${program.id}`;
-    const accessoryExercisePreview = buildAccessoryBlocks(
-      accessoryExerciseForm.series,
-      accessoryExerciseForm.reps
-    );
 
     const programStart = parseLocalDate(program.startDate);
     const daysUntilEnd = getDaysUntilProgramEnd(program);
@@ -991,9 +1206,6 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
           <div className="program-card-body">
             {isEditingNotes && (
               <div className="program-note-edit-bar">
-                <span className="program-note-edit-title">
-                  Modifica le informazioni dei complementari e le note dei fondamentali
-                </span>
                 <div className="program-note-edit-actions">
                   <button
                     type="button"
@@ -1118,7 +1330,7 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                   aria-controls={accessoriesContentId}
                 >
                   <span className="program-week-title">Complementari</span>
-                  <span className="program-week-meta">{complementari.length} giorni</span>
+                  <span className="program-week-meta">{complementari.length} Day</span>
                   <span className="program-week-chevron" aria-hidden="true">
                     {isAccessoriesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                   </span>
@@ -1140,24 +1352,31 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                       </button>
                     )}
 
-                    {isEditingNotes && complementari.length === 0 && (
-                      <p className="program-hint">
-                        Aggiungi prima un giorno complementari, poi potrai inserire gli esercizi.
-                      </p>
-                    )}
-
                     {complementari.map((day) => {
                       const dayKey = `${program.id}:${day.day}`;
                       const isDayOpen = Boolean(openAccessoryDays[dayKey]);
                       const dayContentId = `accessories-${program.id}-${day.day}`;
+                      const formOnThisDay = Boolean(accessoryFormTarget)
+                        && Number(accessoryFormTarget.day) === Number(day.day);
+                      const isAddFormOpen = formOnThisDay && accessoryFormTarget.index == null;
+                      const editingExerciseIndex = formOnThisDay
+                        ? accessoryFormTarget.index
+                        : null;
                       const exercises = day.exercises || [];
 
                       return (
                         <div className="program-accessory-day" key={dayKey}>
-                          <button
-                            type="button"
+                          <div
                             className={`program-week-toggle program-accessory-day-toggle${isDayOpen ? ' open' : ''}`}
+                            role="button"
+                            tabIndex={0}
                             onClick={() => toggleAccessoryDay(program.id, day.day)}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                toggleAccessoryDay(program.id, day.day);
+                              }
+                            }}
                             aria-expanded={isDayOpen}
                             aria-controls={dayContentId}
                           >
@@ -1171,12 +1390,42 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                               <span className="program-day-weekday">{day.weekday}</span>
                             )}
                             <span className="program-week-meta">
-                              {exercises.length} esercizi
+                              {formatAccessoryCount(exercises.length)}
                             </span>
+                            {isEditingNotes && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="program-edit-btn"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleOpenEditAccessoryDay(day);
+                                  }}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                  aria-label={`Modifica il giorno ${day.name || day.day}`}
+                                  title="Modifica giorno"
+                                >
+                                  <Pencil size={17} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="program-delete-btn"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    handleDeleteAccessoryDay(day);
+                                  }}
+                                  onKeyDown={(event) => event.stopPropagation()}
+                                  aria-label={`Elimina il giorno ${day.name || day.day}`}
+                                  title="Elimina giorno"
+                                >
+                                  <Trash2 size={17} />
+                                </button>
+                              </>
+                            )}
                             <span className="program-week-chevron" aria-hidden="true">
                               {isDayOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                             </span>
-                          </button>
+                          </div>
 
                           {isDayOpen && (
                             <div className="program-accessory-list" id={dayContentId}>
@@ -1186,7 +1435,7 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                                     type="button"
                                     className="program-accessory-add-tile"
                                     onClick={() => handleToggleAddAccessoryExercise(day.day)}
-                                    aria-expanded={addAccessoryExerciseDay === day.day}
+                                    aria-expanded={isAddFormOpen}
                                   >
                                     <span className="program-accessory-add-circle" aria-hidden="true">
                                       <Plus size={20} />
@@ -1196,127 +1445,23 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                                     </span>
                                   </button>
 
-                                  {addAccessoryExerciseDay === day.day && (
-                                    <form
-                                      className="program-accessory-add-card"
-                                      id={`${dayContentId}-add-exercise`}
+                                  {isAddFormOpen && (
+                                    <AccessoryExerciseForm
+                                      formId={`${dayContentId}-add-exercise`}
+                                      values={accessoryExerciseForm}
+                                      error={accessoryExerciseError}
+                                      submitLabel="Aggiungi complementare"
+                                      onChange={handleAccessoryExerciseChange}
                                       onSubmit={(event) => handleAddAccessoryExercise(event, day.day)}
-                                      noValidate
-                                    >
-                                      <div className="program-accessory-form-grid">
-                                        <label className="program-field program-field-full">
-                                          <span className="program-label">Nome esercizio</span>
-                                          <input
-                                            className="program-input"
-                                            type="text"
-                                            value={accessoryExerciseForm.name}
-                                            onChange={(event) =>
-                                              handleAccessoryExerciseChange('name', event.target.value)
-                                            }
-                                            placeholder="Es. Leg curl"
-                                            maxLength={60}
-                                          />
-                                        </label>
-
-                                        <label className="program-field">
-                                          <span className="program-label">Serie</span>
-                                          <input
-                                            className="program-input"
-                                            type="text"
-                                            value={accessoryExerciseForm.series}
-                                            onChange={(event) =>
-                                              handleAccessoryExerciseChange('series', event.target.value)
-                                            }
-                                            placeholder="3 + 4 oppure 3x4 + 4x2"
-                                            maxLength={80}
-                                            aria-label="Serie"
-                                          />
-                                          <span className="program-hint program-accessory-field-hint">
-                                            Scrivi 3 + 4, oppure l&apos;intera prescrizione 3x4 + 4x2.
-                                          </span>
-                                        </label>
-
-                                        <label className="program-field">
-                                          <span className="program-label">Rep</span>
-                                          <input
-                                            className="program-input"
-                                            type="text"
-                                            value={accessoryExerciseForm.reps}
-                                            onChange={(event) =>
-                                              handleAccessoryExerciseChange('reps', event.target.value)
-                                            }
-                                            placeholder="4 + 2"
-                                            maxLength={80}
-                                            aria-label="Rep"
-                                          />
-                                          <span className="program-hint program-accessory-field-hint">
-                                            Una voce per ogni blocco di serie.
-                                          </span>
-                                        </label>
-
-                                        <label className="program-field program-field-full">
-                                          <span className="program-label">Note</span>
-                                          <input
-                                            className="program-input"
-                                            type="text"
-                                            value={accessoryExerciseForm.notes}
-                                            onChange={(event) =>
-                                              handleAccessoryExerciseChange('notes', event.target.value)
-                                            }
-                                            placeholder="Es. fermo 1 secondo"
-                                            maxLength={200}
-                                          />
-                                        </label>
-                                      </div>
-
-                                      {accessoryExercisePreview.length > 0 && (
-                                        <div className="program-accessory-add-preview">
-                                          <span className="program-label">Anteprima</span>
-                                          <div className="program-lift">
-                                            <div className="program-lift-head">
-                                              <span className="program-lift-name program-lift-name-accessory">
-                                                {accessoryExerciseForm.name.trim() || 'Nuovo complementare'}
-                                              </span>
-                                              <ProgramBlocks
-                                                blocks={accessoryExercisePreview}
-                                                accessory
-                                              />
-                                            </div>
-                                          </div>
-                                        </div>
-                                      )}
-
-                                      {accessoryExerciseError && (
-                                        <p className="program-error" role="alert">
-                                          {accessoryExerciseError}
-                                        </p>
-                                      )}
-
-                                      <div className="program-accessory-add-actions">
-                                        <button
-                                          type="button"
-                                          className="program-btn-secondary program-btn-small"
-                                          onClick={handleCancelAddAccessoryExercise}
-                                        >
-                                          Annulla
-                                        </button>
-                                        <button
-                                          type="submit"
-                                          className="program-btn-primary program-btn-small"
-                                        >
-                                          Aggiungi complementare
-                                        </button>
-                                      </div>
-                                    </form>
+                                      onCancel={handleCancelAddAccessoryExercise}
+                                    />
                                   )}
                                 </>
                               )}
 
                               {exercises.length === 0 && (
                                 <p className="program-hint program-accessory-empty">
-                                  {isEditingNotes
-                                    ? 'Nessun complementare: usa il riquadro rosso “Aggiungi complementare” qui sopra.'
-                                    : 'Nessun complementare per questo giorno.'}
+                                  {'Nessun complementare per questo giorno.'}
                                 </p>
                               )}
                               {exercises.map(({ exercise, exerciseIndex }) => {
@@ -1344,7 +1489,50 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                                         {exercise.name}
                                       </span>
                                       <ProgramBlocks blocks={blocks} accessory />
+                                      {isEditingNotes && (
+                                        <span className="program-accessory-actions">
+                                          <button
+                                            type="button"
+                                            className="program-edit-btn"
+                                            onClick={() => handleOpenEditAccessoryExercise(
+                                              day.day,
+                                              exercise,
+                                              exerciseIndex
+                                            )}
+                                            aria-label={`Modifica il complementare ${exercise.name}`}
+                                            aria-pressed={editingExerciseIndex === exerciseIndex}
+                                            title="Modifica complementare"
+                                          >
+                                            <Pencil size={15} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            className="program-delete-btn"
+                                            onClick={() => handleDeleteAccessoryExercise(
+                                              day.day,
+                                              exerciseIndex,
+                                              exercise.name
+                                            )}
+                                            aria-label={`Elimina il complementare ${exercise.name}`}
+                                            title="Elimina complementare"
+                                          >
+                                            <Trash2 size={15} />
+                                          </button>
+                                        </span>
+                                      )}
                                     </div>
+                                    {editingExerciseIndex === exerciseIndex && (
+                                      <AccessoryExerciseForm
+                                        formId={`${dayContentId}-edit-${exerciseIndex}`}
+                                        values={accessoryExerciseForm}
+                                        error={accessoryExerciseError}
+                                        submitLabel="Salva complementare"
+                                        onChange={handleAccessoryExerciseChange}
+                                        onSubmit={(event) =>
+                                          handleAddAccessoryExercise(event, day.day)}
+                                        onCancel={handleCancelAddAccessoryExercise}
+                                      />
+                                    )}
                                     {isEditingNotes ? (
                                       <textarea
                                         className="program-note-input"
@@ -1714,8 +1902,10 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                 )}
 
                 <p className="program-hint">
-                  Formati supportati: .xls e .xlsx (max 5 MB). I complementari vengono letti dalla
-                  sezione con i giorni; Squat, Panca e Stacco vengono esclusi.
+                  Formati supportati: .xls e .xlsx (max 5 MB).
+                  <br />
+                  I complementari vengono letti dalla sezione con i giorni; Squat, Panca e Stacco
+                  vengono esclusi.
                 </p>
 
                 {isParsing && <p className="program-hint">Lettura della scheda in corso...</p>}
@@ -1807,7 +1997,7 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
             }}
           >
             <h2 className="program-modal-title" id="add-accessory-day-title">
-              Aggiungi giorno complementari
+              {editingAccessoryDay != null ? 'Modifica giorno complementari' : 'Aggiungi giorno complementari'}
             </h2>
             <form className="program-modal-form" onSubmit={handleAddAccessoryDay} noValidate>
               <label className="program-field">
@@ -1866,7 +2056,7 @@ const Programmazioni = ({ userId, prMaxes, coachKey = null, coachName = '' }) =>
                   Annulla
                 </button>
                 <button type="submit" className="program-btn-primary program-btn-small">
-                  Aggiungi giorno
+                  {editingAccessoryDay != null ? 'Salva giorno' : 'Aggiungi giorno'}
                 </button>
               </div>
             </form>

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { usePersistentState } from './utils/usePersistentState';
 import PropTypes from 'prop-types';
 import {
   CartesianGrid,
@@ -410,11 +411,12 @@ const ProgramDashboard = ({
 }) => {
   const [selectedLift, setSelectedLift] = useState('squat');
   const [pointMode, setPointMode] = useState('session');
-  const [activeMetrics, setActiveMetrics] = useState({
-    volume: true,
-    intensity: true,
-    frequency: true,
-  });
+  // La scelta dei grafici resta tra le sessioni: chi chiude e riapre l'app
+  // ritrova gli stessi grafici attivi.
+  const [activeMetrics, setActiveMetrics] = usePersistentState(
+    'kuma_program_dashboard_metrics',
+    { volume: true, intensity: true, frequency: true }
+  );
 
   const weeklyData = useMemo(
     () => aggregateWeeklyMetrics({

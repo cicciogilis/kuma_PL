@@ -19,6 +19,9 @@
 - `box-sizing: border-box` + `max-width: 100%` obbligatori su qualsiasi elemento a
   larghezza variabile dentro card.
 - border-radius: `12px` (non pill `999px`) per coerenza desktop/mobile.
+- Per farlo estendere **sopra le icone** (pencil/cestino/freccia) serve la grid su
+  `.program-card-header` a ≤480px con `display: contents` su `.program-card-main`
+  e `grid-auto-flow: row dense`. Vedi nota nel log del 2026-10-26.
 - Test di regola: `.workbuddy-ai/tests/expiryBanner.css.test.js` + layout Playwright.
 
 ## TRAPPOLA: lo sfondo `.app-background` (z-index:-1) NON va coperto da `html`
@@ -68,4 +71,79 @@
 - `dist/` non è tracciato né su main né sul branch (corretto per Vercel).
 - Nessun `engines`/`.nvmrc` da nessuna delle due parti: Vercel usa il Node di default del progetto.
 
+## Sincronizzare kuma_PL → SBD-ladder: attenzione ai line ending
+- Stesso contenuto, ma **worktree diverso**: kuma_PL ha `w/lf`, SBD-ladder ha
+  `w/crlf` (`git ls-files --eol` per verificare). Copiare i file così come sono
+  fa comparire in SBD-ladder un diff che riscrive l'intero file.
+- Copiare convertendo in CRLF (Python: `text.replace('\r\n','\n').replace('\n','\r\n')`).
+  Poi `git diff --stat` deve mostrare solo le righe realmente cambiate.
 
+## TRAPPOLA: specificità CSS sulle classi "di comodo"
+- `.toggle-row .toggle-text { max-width: 220px }` (0,2,0) batteva
+  `.leaderboard-toggle-text { max-width: none }` (0,1,0): override inefficace,
+  colonna di testo bloccata a 220px a ogni larghezza → wrap indesiderati su
+  desktop e spazio vuoto a destra.
+- Regola: quando si crea una classe "variante" che deve sovrascrivere una regola
+  composta (`.a .b`), la variante deve avere **almeno la stessa specificità**
+  (es. `.leaderboard-toggle-row .leaderboard-toggle-text`), non una in meno.
+- Verificare sempre con una misura reale (bounding box), non a occhio: lo switch
+  era già a offset 0, il problema era la larghezza della colonna di testo.
+
+## Dati anagrafici obbligatori (pagina "Informazioni personali")
+- Elenco unico in `src/utils/personalInfo.js` (`REQUIRED_PERSONAL_FIELDS`):
+  Nome, Cognome, Data di nascita, Genere, Città di nascita, Provincia.
+- Dopo il login, se manca anche uno solo, si passa da `currentPage === 'PersonalInfo'`
+  prima di entrare. `firstLogin` **non** va azzerato in quel momento: si azzera
+  solo al "Continua", così il popup benvenuto/massimali arriva dopo.
+- Il salvataggio usa `update()` con i soli 6 campi: **non** `handleSave`, che
+  riscrive tutto lo stato locale (massimali, programmazioni, ecc.).
+- I 6 campi stanno in `renderPersonalInfoFields()` che restituisce **solo gli
+  item** (niente wrapper `.personal-info-grid`): la registrazione deve restare
+  su un'unica griglia o cambiano le spaziature delle credenziali.
+
+## Timer di recupero (Strumenti allenamento)
+- Suono da **elemento `<audio loop>`** (`src/utils/timerAlarm.js`), non da Web
+  Audio: solo un media element prende il focus audio e quindi mette in pausa /
+  riprende la musica del telefono. Va "sbloccato" sul tap di "Avvia".
+- `public/sw.js` serve solo a `showNotification` (notifica persistente, tap →
+  stop). Registrato all'apertura del pannello.
+- **A pagina/browser chiusi il timer non può suonare**: è un limite del web.
+  Per quello serve `@capacitor/local-notifications` nella build nativa.
+- `stopAlarm` riporta sempre `timerRemaining` a `preset * 60`.
+- Sul timer c'è anche un `setTimeout` secco su `timerEndsAt`: in background i
+  `setInterval` vengono rallentati, il timeout no.
+
+## TRAPPOLA: flex non scende sotto il min-content
+- `flex: 1 1 0` + `min-width: 0` su due riquadri affiancati **non** garantisce
+  larghezze uguali: il flex può fermarsi al min-content dell'elemento più
+  "largo" (misurato 115/137 invece di 126/126).
+- Per una divisione deterministica usare `display: grid` con
+  `grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr)`.
+- Vale anche per le larghezze "riempi lo spazio": verificare sempre con
+  `getBoundingClientRect`, non a occhio.
+
+
+
+## TRAPPOLA: `display:flex` su `<th>`/`<td>` rompe il layout di tabella
+`th { display:flex }` toglie la cella dal layout di tabella: `colSpan` non viene
+onorato e la cella si riduce al contenuto (l'header "Week N" finiva compresso
+nella colonna Giorno). Il flex va su un `<div>` **dentro** la cella.
+
+## Filtri scadenze dashboard allenatore (`src/utils/teamFilters.js`)
+Fasce disgiunte: `w1` 0..7, `w2` 8..14, `w3` 15..21, `expired` <0 (tutte),
+`expired1` -7..-1, `expired2` -14..-8, `all` tutto tranne `null`.
+`expired` sovrappone di proposito `expired1`/`expired2`; queste due no tra loro.
+Test: `src/utils/teamFilters.test.js` + e2e `coachDashboard.e2e.mjs`.
+
+## TRAPPOLA: `<button>` è `border-box`, `<div>` no
+Il progetto non ha `* { box-sizing: border-box }`: i `<button>` sono border-box
+per default UA, i `<div>` no. Se un blocco con `width: 100%` + padding + border
+passa da `<button>` a `<div>` (es. per mettere icone dentro), aggiungere
+`box-sizing: border-box` o sborda della somma di padding e bordo.
+
+## Complementari: le note sono indicizzate
+`accessoryNoteKeyFor(day, exerciseIndex)` → `accessory-{day}-{index}`. Eliminare
+un giorno o un esercizio sposta gli indici: `noteDraft` va **rimappato** sulla
+nuova numerazione, altrimenti al salvataggio le note restano sul vecchio indice.
+`applyProgramEdit` rinumera i giorni da 1.
+Logica del form in `src/utils/accessoryForm.js` (+ test): build/format dei blocchi.

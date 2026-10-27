@@ -1008,7 +1008,9 @@ body {
   width: 100%;
   max-width: 500px;
   margin: 22px auto 0 auto;
-  padding: 20px 15px;
+  /* Niente padding orizzontale: lo spazio lo dà già `.home-page`, così il
+     riquadro del giorno resta largo quanto quello dentro la card della scheda. */
+  padding: 20px 0;
   box-sizing: border-box;
   text-align: center;
 }
@@ -1126,37 +1128,33 @@ body {
   color: #fff;
 }
 
-.toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 12px;
-  flex-wrap: wrap;
-}
-
-.toggle-row .toggle-text {
-  max-width: 220px;
-}
-
-.toggle-row .toggle-text span {
-  display: block;
-  margin-bottom: 2px;
-}
-
+/* Riga "Visualizzazione Leader Board" in Impostazioni.
+   Unico consumatore di questa struttura: switch a sinistra, testo che prende
+   tutta la larghezza che resta. La vecchia regola .toggle-row .toggle-text
+   imponeva max-width: 220px e, per specificità (0,2,0 contro 0,1,0), vinceva
+   sul max-width: none del testo: la colonna restava schiacciata a 220px e le
+   due label andavano a capo anche da web, lasciando spazio vuoto a destra. */
 .leaderboard-toggle-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: nowrap;
   gap: 12px;
+  margin-top: 12px;
+}
+
+/* Lo switch non deve aggiungere il margin-right del toggle generico */
+.leaderboard-toggle-row .toggle-switch {
+  flex: 0 0 auto;
+  margin: 0;
 }
 
 .leaderboard-toggle-text {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: none;
 }
 
 .leaderboard-toggle-title {
+  display: block;
   color: #ccc;
   font-size: 14px;
   line-height: 1.35;
@@ -1164,6 +1162,7 @@ body {
 }
 
 .leaderboard-toggle-hint {
+  display: block;
   margin: 4px 0 0;
   color: #888;
   font-size: 12px;
@@ -1171,29 +1170,11 @@ body {
   white-space: normal;
 }
 
-.inline-toggle {
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 10px;
-  margin-top: 0;
-  margin-right: 0;
-}
-
-@media (max-width: 600px) {
-  .leaderboard-toggle-row {
-    flex-wrap: wrap;
-    align-items: flex-start;
-  }
-
-  .leaderboard-toggle-text {
-    order: 2;
-    width: 100%;
-    margin-top: 8px;
-  }
-
-  .inline-toggle {
-    order: 1;
-    margin-top: 0;
+/* Da web le due label stanno su una riga sola; su mobile possono andare a capo */
+@media (min-width: 601px) {
+  .leaderboard-toggle-title,
+  .leaderboard-toggle-hint {
+    white-space: nowrap;
   }
 }
 

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixture – angoli scheda compressa</title>
+<link rel="stylesheet" href="../../src/Programmazioni.css">
+<style>
+  /* Sfondo page " rumoroso": se l'angolo della card è smussato si vede il magenta
+     attraverso l'angolo, se è retto si vede il grigio (#222) dell'header. */
+  body {
+    margin: 0;
+    padding: 16px;
+    background: #ff00ff;
+    color: #fff;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .stack { display: flex; flex-direction: column; gap: 24px; }
+  .icona { display: block; width: 17px; height: 17px; border-radius: 3px; background: #555; }
+  .etichetta { font-size: 12px; color: #fff; margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<div class="stack">
+  <div>
+    <p class="etichetta">COMPRESSA (non expanded)</p>
+    <div class="program-card" id="card-compressa">
+      <div class="program-card-header">
+        <div class="program-card-main">
+          <span class="program-card-name">Scheda QA</span>
+          <span class="program-card-meta">
+            <span>dal 20/10/2026</span>
+            <span>4 week</span>
+          </span>
+        </div>
+        <button type="button" class="program-edit-btn"><span class="icona"></span></button>
+        <button type="button" class="program-delete-btn"><span class="icona"></span></button>
+        <span class="program-card-chevron"><span class="icona"></span></span>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <p class="etichetta">ESPANSA (expanded)</p>
+    <div class="program-card expanded" id="card-espansa">
+      <div class="program-card-header">
+        <div class="program-card-main">
+          <span class="program-card-name">Scheda QA</span>
+          <span class="program-card-meta">
+            <span>dal 20/10/2026</span>
+            <span>4 week</span>
+          </span>
+        </div>
+        <button type="button" class="program-edit-btn"><span class="icona"></span></button>
+        <button type="button" class="program-delete-btn"><span class="icona"></span></button>
+        <span class="program-card-chevron"><span class="icona"></span></span>
+      </div>
+      <div class="program-card-body">
+        <p class="program-card-hint">Corpo della scheda espansa.</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

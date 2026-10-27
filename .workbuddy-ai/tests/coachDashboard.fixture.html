@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fixture – dashboard allenatore</title>
+<link rel="stylesheet" href="../../src/ProgramMatrix.css">
+<link rel="stylesheet" href="../../src/TeamEvents.css">
+<style>
+  /* Solo il contenitore: le regole di matrice ed elenco atleti arrivano dai CSS
+     reali, così la fixture verifica il foglio di stile effettivamente usato. */
+  body {
+    margin: 0;
+    padding: 16px;
+    background: #000;
+    color: #fff;
+    font-family: system-ui, -apple-system, sans-serif;
+  }
+  .stack { display: flex; flex-direction: column; gap: 24px; }
+  .team-events-modal {
+    width: 100%;
+    max-width: 640px;
+    box-sizing: border-box;
+    background: #141414;
+    border: 1px solid #333;
+    border-radius: 12px;
+    padding: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="stack">
+  <div class="program-matrix-wrap">
+    <table class="program-matrix">
+      <thead>
+        <tr>
+          <th scope="col" class="program-matrix-day-head">Giorno</th>
+          <th scope="col">Squat</th>
+          <th scope="col">Panca</th>
+          <th scope="col">Stacco</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="program-matrix-week">
+          <th scope="colgroup" colspan="4">
+            <div class="program-matrix-week-head">
+              <button type="button" class="program-matrix-week-toggle" aria-expanded="true">
+                <span class="program-matrix-week-chevron" aria-hidden="true">v</span>
+              </button>
+              <span class="program-matrix-week-title">Week 2</span>
+              <span class="program-matrix-week-meta">4 day</span>
+            </div>
+          </th>
+        </tr>
+        <tr class="program-matrix-row">
+          <th scope="row" class="program-matrix-day">
+            <span class="program-matrix-day-label">Day 4</span>
+            <span class="program-matrix-weekday">Giovedì</span>
+          </th>
+          <td class="program-matrix-cell"><span>8×3 @80</span></td>
+          <td class="program-matrix-cell"><span>6×4 @70</span></td>
+          <td class="program-matrix-cell is-empty"><span class="program-matrix-dash">—</span></td>
+        </tr>
+      </tbody>
+      <tbody>
+        <tr class="program-matrix-week">
+          <th scope="colgroup" colspan="4">
+            <div class="program-matrix-week-head">
+              <button type="button" class="program-matrix-week-toggle" aria-expanded="false">
+                <span class="program-matrix-week-chevron" aria-hidden="true">></span>
+              </button>
+              <span class="program-matrix-week-title">Week 12</span>
+              <span class="program-matrix-week-meta">5 day</span>
+            </div>
+          </th>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="team-events-modal">
+    <div class="team-events-athletes">
+      <label class="team-events-athlete">
+        <input type="checkbox" class="checkbox-dark" checked>
+        <span>Marco Moscheo <small>@marco_moscheo_92</small></span>
+      </label>
+      <label class="team-events-athlete">
+        <input type="checkbox" class="checkbox-dark">
+        <span>Giulia Bianchi <small>@giulia.bianchi</small></span>
+      </label>
+      <label class="team-events-athlete">
+        <input type="checkbox" class="checkbox-dark">
+        <span>Francesco De Santis <small>@francesco_de_santis_lunghissimo</small></span>
+      </label>
+    </div>
+  </div>
+</div>
+</body>
+</html>

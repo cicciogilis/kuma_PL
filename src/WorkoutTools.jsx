@@ -19,6 +19,16 @@ import {
   calculatePlateLoad,
 } from './utils/plateLoading';
 import { usePersistentState } from './utils/usePersistentState';
+import {
+  closeTimerNotification,
+  ensureNotificationPermission,
+  registerTimerServiceWorker,
+  showTimerNotification,
+  startAlarmAudio,
+  stopAlarmAudio,
+  subscribeTimerNotificationClick,
+  unlockAlarmAudio,
+} from './utils/timerAlarm';
 import './WorkoutTools.css';
 
 const KG_FORMATTER = new Intl.NumberFormat('it-IT', {
@@ -302,8 +312,10 @@ const PlateCalculator = () => {
       )}
       {!load.error && !load.exact && (
         <p className="wt-plate-note wt-summary-warn">
-          Caricabile {formatKg(load.loadedTotal)} kg · resto{' '}
-          {formatKg(load.remainderTotal)} kg
+          <span className="wt-note-label">Caricabile</span>{' '}
+          <span className="wt-note-value">{formatKg(load.loadedTotal)} kg</span>{' '}
+          <span className="wt-note-label">· resta</span>{' '}
+          <span className="wt-note-value">{formatKg(load.remainderTotal)} kg</span>
         </p>
       )}
     </section>
@@ -396,48 +408,11 @@ const ClockTools = () => {
     createDefaultClockState
   );
   const [now, setNow] = useState(() => Date.now());
-  const audioContextRef = useRef(null);
-  const alarmIntervalRef = useRef(null);
 
-  const ensureAudioContext = useCallback(() => {
-    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextClass) return null;
-
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new AudioContextClass();
-      }
-
-      const context = audioContextRef.current;
-      if (context.state === 'suspended') {
-        context.resume().catch(() => {});
-      }
-
-      return context;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const playAlarmBeep = useCallback((context) => {
-    try {
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
-      const start = context.currentTime;
-
-      oscillator.type = 'square';
-      oscillator.frequency.setValueAtTime(880, start);
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.18, start + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-
-      oscillator.connect(gain);
-      gain.connect(context.destination);
-      oscillator.start(start);
-      oscillator.stop(start + 0.18);
-    } catch {
-      // Audio can be unavailable or blocked; the timer UI must keep working.
-    }
+  // Il service worker serve solo alle notifiche del timer: si registra appena
+  // si apre il pannello, così al momento della sveglia è già pronto.
+  useEffect(() => {
+    registerTimerServiceWorker();
   }, []);
 
   useEffect(() => {
@@ -459,6 +434,21 @@ const ClockTools = () => {
     ? Math.max(0, now - clock.stopwatchStartedAt)
     : Math.max(0, Number(clock.stopwatchElapsed) || 0);
 
+  // Stop della sveglia: il timer non resta a 00:00 ma torna all'intervallo
+  // di riposo scelto, pronto per il recupero successivo.
+  const stopAlarm = useCallback(() => {
+    setClock((previous) => {
+      const preset = Math.min(5, Math.max(1, Number(previous.timerPreset) || 3));
+      return {
+        ...previous,
+        alarmRinging: false,
+        timerRunning: false,
+        timerEndsAt: null,
+        timerRemaining: preset * 60,
+      };
+    });
+  }, [setClock]);
+
   useEffect(() => {
     if (!clock.timerRunning || timerRemaining > 0) return;
 
@@ -474,38 +464,40 @@ const ClockTools = () => {
     });
   }, [clock.timerRunning, timerRemaining, setClock]);
 
+  // Sveglia: il media element prende il focus audio, quindi mette in pausa la
+  // musica del telefono e la fa riprendere quando viene fermato.
   useEffect(() => {
-    if (!clock.alarmRinging) return undefined;
+    if (clock.alarmRinging) {
+      startAlarmAudio();
+      showTimerNotification({ minutes: timerPreset });
+      return () => stopAlarmAudio();
+    }
 
-    const context = ensureAudioContext();
-    if (!context) return undefined;
+    stopAlarmAudio();
+    closeTimerNotification();
+    return undefined;
+  }, [clock.alarmRinging, timerPreset]);
 
-    const beep = () => {
-      if (audioContextRef.current?.state !== 'running') {
-        audioContextRef.current?.resume().catch(() => {});
-        return;
-      }
-      playAlarmBeep(context);
-    };
+  // Tap sulla notifica di sistema: si comporta come il pulsante "Stop".
+  useEffect(() => subscribeTimerNotificationClick(stopAlarm), [stopAlarm]);
 
-    beep();
-    alarmIntervalRef.current = window.setInterval(beep, 650);
+  // Oltre al refresh da intervallo, un timeout secco sull'istante di scadenza:
+  // in background i timer periodici vengono rallentati, questo no.
+  useEffect(() => {
+    if (!clock.timerRunning || !clock.timerEndsAt) return undefined;
 
-    return () => {
-      if (alarmIntervalRef.current) {
-        window.clearInterval(alarmIntervalRef.current);
-        alarmIntervalRef.current = null;
-      }
-    };
-  }, [clock.alarmRinging, ensureAudioContext, playAlarmBeep]);
+    const delay = Math.max(0, clock.timerEndsAt - Date.now()) + 80;
+    const timeout = window.setTimeout(() => setNow(Date.now()), delay);
+    return () => window.clearTimeout(timeout);
+  }, [clock.timerRunning, clock.timerEndsAt]);
 
   useEffect(() => {
     if (!clock.timerRunning && !clock.alarmRinging) return undefined;
 
-    const unlockAudio = () => ensureAudioContext();
+    const unlockAudio = () => unlockAlarmAudio();
     document.addEventListener('pointerdown', unlockAudio, { once: true });
     return () => document.removeEventListener('pointerdown', unlockAudio);
-  }, [clock.timerRunning, clock.alarmRinging, ensureAudioContext]);
+  }, [clock.timerRunning, clock.alarmRinging]);
 
   const selectTimerPreset = (minutes) => {
     setClock((previous) => ({
@@ -519,7 +511,11 @@ const ClockTools = () => {
   };
 
   const toggleTimer = () => {
-    ensureAudioContext();
+    // Suono e notifiche vanno sbloccati su un gesto dell'utente: se si aspetta
+    // la scadenza, il sistema blocca sia il beep sia il permesso.
+    unlockAlarmAudio();
+    registerTimerServiceWorker();
+    ensureNotificationPermission();
     setNow(Date.now());
     setClock((previous) => {
       if (previous.timerRunning) {
@@ -602,10 +598,6 @@ const ClockTools = () => {
       stopwatchStartedAt: null,
       stopwatchElapsed: 0,
     }));
-  };
-
-  const stopAlarm = () => {
-    setClock((previous) => ({ ...previous, alarmRinging: false }));
   };
 
   const isTimerMode = clock.mode !== 'stopwatch';

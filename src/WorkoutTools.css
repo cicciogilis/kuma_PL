@@ -557,6 +557,15 @@
   color: #fbbf24;
 }
 
+/* "Caricabile"/"· resta" in bianco, i valori in giallo */
+.wt-note-label {
+  color: #e8e8e8;
+}
+
+.wt-note-value {
+  color: #fbbf24;
+}
+
 .wt-set-card {
   display: flex;
   flex-direction: column;
@@ -665,18 +674,23 @@
 }
 
 .wt-clock-tabs {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   gap: 3px;
   margin-bottom: 12px;
   padding: 3px;
   border: 1px solid #333;
   border-radius: 999px;
   background: #101010;
+  box-sizing: border-box;
 }
 
 .wt-clock-tab {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex: 1 1 0;
+  min-width: 0;
   gap: 5px;
   padding: 5px 10px;
   border: 0;
@@ -896,19 +910,20 @@
   text-align: right;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-variant-numeric: tabular-nums;
 }
 
+/* Prima riga: solo 50 e 60 (metà larghezza ciascuno); gli altri riquadri
+   stanno tutti sulla riga successiva, sei colonne. */
 .wt-calc-shortcuts {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px;
   margin-top: auto;
 }
 
 .wt-calc-shortcut {
-  min-width: 44px;
-  padding: 6px 10px;
+  min-width: 0;
+  padding: 6px 2px;
   border: 1px solid #333;
   border-radius: 7px;
   background: #171717;
@@ -916,7 +931,13 @@
   font: inherit;
   font-size: 11px;
   font-weight: 700;
+  text-align: center;
   cursor: pointer;
+}
+
+.wt-calc-shortcut:nth-child(1),
+.wt-calc-shortcut:nth-child(2) {
+  grid-column: span 3;
 }
 
 .wt-calc-shortcut:hover {
@@ -1052,6 +1073,56 @@
 
   .wt-clock-body {
     gap: 16px;
+  }
+
+  /* Mobile: ogni controllo occupa la larghezza disponibile, senza vuoti a destra */
+  .wt-plate-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    width: 100%;
+    margin-left: 0;
+    gap: 6px;
+  }
+
+  .wt-bar-picker {
+    min-width: 0;
+  }
+
+  .wt-bar-picker select {
+    width: 100%;
+    max-width: none;
+  }
+
+  .wt-blocks-toggle {
+    min-width: 0;
+    justify-content: space-between;
+    min-height: 26px;
+    padding: 0 9px 0 11px;
+    border: 1px solid #3a3a3a;
+    border-radius: 999px;
+    background: #111;
+  }
+
+  .wt-presets {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .wt-preset {
+    padding: 6px 2px;
+    text-align: center;
+  }
+
+  .wt-clock-actions {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .wt-action-button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px 8px;
   }
 
   .wt-dial-wrap {

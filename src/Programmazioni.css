@@ -624,6 +624,14 @@ input[type='date'].program-input {
   cursor: pointer;
 }
 
+/* Scheda compressa: l'header è tutta la card, quindi i suoi angoli inferiori
+   retti coprirebbero il raggio della card (che ha overflow: visible per far
+   restare sticky l'intestazione della tabella). Smussiamo anche in basso:
+   9px = 10px della card - 1px di bordo, come gli angoli superiori. */
+.program-card:not(.expanded) .program-card-header {
+  border-radius: 9px;
+}
+
 .program-card-header:hover {
   background-color: #2a2a2a;
 }
@@ -744,7 +752,6 @@ input[type='date'].program-input {
 
 .program-note-edit-bar {
   display: flex;
-  flex-direction: column;
   align-items: center;
   gap: 10px;
   padding: 10px 12px;
@@ -753,18 +760,17 @@ input[type='date'].program-input {
   background-color: #221d10;
 }
 
-.program-note-edit-title {
-  width: 100%;
-  color: #e2b04a;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
+/* I due pulsanti riempiono la larghezza del banner giallo. */
 .program-note-edit-actions {
   display: flex;
-  justify-content: center;
   gap: 8px;
-  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
+}
+
+.program-note-edit-actions > button {
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .program-card-file {
@@ -797,6 +803,9 @@ input[type='date'].program-input {
   align-items: center;
   gap: 10px;
   width: 100%;
+  /* Obbligatorio: l'header del giorno complementari è un <div> (non un <button>),
+     quindi senza border-box il padding lo farebbe sbordare di 22px. */
+  box-sizing: border-box;
   padding: 9px 10px;
   border: 1px solid #333;
   border-radius: 8px;
@@ -965,16 +974,30 @@ input[type='date'].program-input {
   margin: 0;
 }
 
+/* Stesso layout dei fondamentali: nessuna riga grigia a sinistra, il riquadro
+   del giorno occupa tutta la larghezza come quello della settimana. */
 .program-accessory-day {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-left: 10px;
-  border-left: 2px solid #333;
+  gap: 10px;
 }
 
 .program-accessory-day-toggle {
   background-color: #1b1b1b;
+}
+
+/* Matita e cestino del singolo complementare, in coda alla riga del nome. */
+.program-accessory-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.program-accessory-actions .program-edit-btn,
+.program-accessory-actions .program-delete-btn {
+  padding: 5px;
 }
 
 .program-accessory-day-title {
@@ -990,6 +1013,30 @@ input[type='date'].program-input {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+/* Su schermo stretto l'header del giorno non ci sta su una riga sola: il titolo
+   va sopra e dettagli + azioni sotto, senza mai sbordare dal riquadro. */
+@media (max-width: 480px) {
+  .program-accessory-day-toggle {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .program-accessory-day-title {
+    flex: 1 1 100%;
+  }
+
+  .program-accessory-day-toggle .program-week-chevron {
+    margin-left: auto;
+  }
+}
+
+/* Sotto i 400px anche il badge "Day N" è di troppo: il titolo lo dice già. */
+@media (max-width: 400px) {
+  .program-accessory-day-order {
+    display: none;
+  }
 }
 
 .program-day {
@@ -1093,7 +1140,7 @@ input[type='date'].program-input {
 }
 
 .program-lift-name-accessory {
-  color: #9a9a9a;
+  color: #ff4136;
 }
 
 .program-lift-name-variant {
@@ -1220,7 +1267,6 @@ input[type='date'].program-input {
 
 .program-block-suggestion {
   color: #7bd88f;
-  font-size: 11px;
   font-weight: 600;
 }
 
@@ -1451,7 +1497,9 @@ input[type='date'].program-input {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 14px;
+  /* Il gap del `.program-card-body` basta: niente margine extra, così la nota
+     resta più vicina ai complementari. */
+  margin-top: 0;
   padding: 12px;
   border: 1px solid #2f2f2f;
   border-radius: 10px;
@@ -1516,17 +1564,60 @@ input[type='date'].program-input {
   .program-expiry-action {
     display: flex;
     width: 100%;
-    justify-content: space-between;
+    justify-content: center;
     gap: 8px;
-    padding: 10px 16px;
+    padding: 10px 12px;
     font-size: 12px;
     line-height: 1.3;
-    white-space: nowrap;
-    overflow: hidden;
+    white-space: normal;
+    overflow: visible;
+    text-align: center;
   }
 
   .program-expiry-action.sent {
     background: linear-gradient(135deg, rgba(123, 216, 143, 0.3), rgba(76, 175, 130, 0.18));
     box-shadow: 0 4px 16px rgba(123, 216, 143, 0.15);
+  }
+
+  /* L'intestazione diventa una griglia: il banner occupa l'intera riga
+     (anche lo spazio delle icone) e il testo non viene più tagliato.
+     `display: contents` promuove banner/nome/meta della colonna principale
+     dentro la griglia, senza toccare il markup. */
+  .program-card-header {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto auto;
+    grid-auto-flow: row dense;
+    align-items: center;
+    column-gap: 8px;
+    row-gap: 6px;
+  }
+
+  .program-card-main {
+    display: contents;
+  }
+
+  .program-expiry-action,
+  .program-card-ending-warning {
+    grid-column: 1 / -1;
+  }
+
+  .program-card-name {
+    grid-column: 1;
+  }
+
+  .program-card-meta {
+    grid-column: 1 / -1;
+  }
+
+  .program-edit-btn {
+    grid-column: 2;
+  }
+
+  .program-delete-btn {
+    grid-column: 3;
+  }
+
+  .program-card-chevron {
+    grid-column: 4;
   }
 }

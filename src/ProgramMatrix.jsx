@@ -66,20 +66,22 @@ const ProgramMatrix = ({
             <tbody key={`${program.id}-week-${week.week}`}>
               <tr className="program-matrix-week">
                 <th scope="colgroup" colSpan={LIFT_COLUMNS.length + 1}>
-                  {collapsibleWeeks && (
-                    <button
-                      type="button"
-                      className="program-matrix-week-toggle"
-                      onClick={() => toggleWeek(week.week)}
-                      aria-expanded={weekOpen}
-                    >
-                      <span className="program-matrix-week-chevron" aria-hidden="true">
-                        {weekOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </span>
-                    </button>
-                  )}
-                  <span className="program-matrix-week-title">Week {week.week}</span>
-                  <span className="program-matrix-week-meta">{week.sessions.length} day</span>
+                  <div className="program-matrix-week-head">
+                    {collapsibleWeeks && (
+                      <button
+                        type="button"
+                        className="program-matrix-week-toggle"
+                        onClick={() => toggleWeek(week.week)}
+                        aria-expanded={weekOpen}
+                      >
+                        <span className="program-matrix-week-chevron" aria-hidden="true">
+                          {weekOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </span>
+                      </button>
+                    )}
+                    <span className="program-matrix-week-title">Week {week.week}</span>
+                    <span className="program-matrix-week-meta">{week.sessions.length} day</span>
+                  </div>
                 </th>
               </tr>
 

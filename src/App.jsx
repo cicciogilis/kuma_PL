@@ -31,6 +31,7 @@ import {
   subscribePrograms,
 } from './utils/programStore';
 import { subscribeAthleteEvents } from './utils/eventStore';
+import { hasMissingPersonalInfo } from './utils/personalInfo';
 
 // Chiave di accesso alle opzioni sviluppatore.
 // Può essere sovrascritta in produzione con VITE_DEV_ADMIN_KEY.
@@ -137,6 +138,9 @@ function App() {
   const [homeCompletions, setHomeCompletions] = useState({});
   const [showSplash, setShowSplash] = useState(true);
   const [showFirstLoginModal, setShowFirstLoginModal] = useState(false);
+  // Il benvenuto/massimali va mostrato solo DOPO l'eventuale pagina
+  // "Informazioni personali": qui ricordiamo se era richiesto al login.
+  const [pendingFirstLogin, setPendingFirstLogin] = useState(false);
   const [profilePhoto, setProfilePhoto] = useState('');
   const [fileInputKey, setFileInputKey] = useState(0);
   const [saveError, setSaveError] = useState(false);
@@ -260,6 +264,18 @@ function App() {
           setUsername(userData.username);
           setSaveError(false);
           setLeaderboardError(false);
+          localStorage.setItem('username', userData.username);
+          localStorage.setItem('password', loginPassword);
+
+          // Prima di entrare nell'app: se manca anche un solo dato anagrafico
+          // si passa dalla pagina "Informazioni personali". Il flag firstLogin
+          // resta intatto, così il benvenuto/massimali arriva subito dopo.
+          if (hasMissingPersonalInfo(userData)) {
+            setPendingFirstLogin(Boolean(userData.firstLogin));
+            setCurrentPage('PersonalInfo');
+            return;
+          }
+
           if (userData.firstLogin) {
             await update(userRef, { firstLogin: false });
             setShowFirstLoginModal(true);
@@ -267,8 +283,6 @@ function App() {
           } else {
             setCurrentPage('Home');
           }
-          localStorage.setItem('username', userData.username);
-          localStorage.setItem('password', loginPassword);
         } else {
           alert('Password errata');
         }
@@ -335,6 +349,52 @@ function App() {
       localStorage.setItem('password', loginPassword);
     } catch (error) {
       console.error('Errore durante il login:', error);
+      alert('Errore di connessione. Controlla la rete e riprova.');
+    }
+  };
+
+  // Salvataggio dei soli dati anagrafici dalla pagina "Informazioni personali".
+  // Non passa da handleSave: qui si scrivono solo i 6 campi, senza toccare
+  // massimali, programmazioni o altri dati del profilo.
+  const handlePersonalInfoSubmit = async (e) => {
+    if (e) e.preventDefault();
+
+    if (!firstName || !lastName || !birthDate || !birthCity || !birthProvince || !gender) {
+      alert('Compila tutti i campi');
+      return;
+    }
+
+    const userKey = normalizeUsername(username);
+    if (!userKey) {
+      alert('Sessione non valida. Effettua di nuovo il login.');
+      return;
+    }
+
+    const wasFirstLogin = pendingFirstLogin;
+
+    try {
+      const userRef = ref(db, `users/${userKey}`);
+      const updates = {
+        firstName,
+        lastName,
+        birthDate,
+        birthCity,
+        birthProvince,
+        gender,
+      };
+      if (wasFirstLogin) updates.firstLogin = false;
+
+      await update(userRef, updates);
+      setPendingFirstLogin(false);
+
+      if (wasFirstLogin) {
+        setShowFirstLoginModal(true);
+        setCurrentPage('Me');
+      } else {
+        setCurrentPage('Home');
+      }
+    } catch (error) {
+      console.error('Errore durante il salvataggio dei dati personali:', error);
       alert('Errore di connessione. Controlla la rete e riprova.');
     }
   };
@@ -628,6 +688,7 @@ function App() {
     setPassword('');
     setIsRegistering(false);
     setShowFirstLoginModal(false);
+    setPendingFirstLogin(false);
     setSaveError(false);
     setLeaderboardError(false);
     setShowDevKeyModal(false);
@@ -770,6 +831,98 @@ function App() {
     </div>
   );
 
+  // I 6 campi anagrafici condivisi da registrazione e "Informazioni personali".
+  // Sono controllati: se ne manca anche uno solo l'utente non entra nell'app.
+  // Restituiscono solo gli item: la griglia la mette il chiamante, così la
+  // registrazione continua a usare un'unica .personal-info-grid.
+  const renderPersonalInfoFields = () => (
+    <>
+      <div className="info-item">
+        <div className="info-label">Nome</div>
+        <input
+          type="text"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+          placeholder="Nome"
+          className="info-input"
+          aria-label="Nome"
+        />
+      </div>
+      <div className="info-item">
+        <div className="info-label">Cognome</div>
+        <input
+          type="text"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+          placeholder="Cognome"
+          className="info-input"
+          aria-label="Cognome"
+        />
+      </div>
+      <div className="info-item">
+        <div className="info-label">Data di Nascita</div>
+        <input
+          type="date"
+          value={birthDate}
+          onChange={(e) => setBirthDate(e.target.value)}
+          placeholder="Data di Nascita"
+          className="info-input"
+          aria-label="Data di nascita"
+        />
+      </div>
+      <div className="info-item">
+        <div className="info-label">Genere</div>
+        <select
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
+          className="info-select"
+          aria-label="Genere"
+        >
+          <option value="">Seleziona genere</option>
+          <option value="M">M</option>
+          <option value="F">F</option>
+        </select>
+      </div>
+      <div className="info-item">
+        <div className="info-label">Città di Nascita</div>
+        <input
+          type="text"
+          value={birthCity}
+          onChange={(e) => setBirthCity(e.target.value)}
+          placeholder="Città di Nascita"
+          className="info-input"
+          aria-label="Città di nascita"
+        />
+      </div>
+      <div className="info-item">
+        <div className="info-label">Provincia</div>
+        <input
+          type="text"
+          value={birthProvince}
+          onChange={(e) => setBirthProvince(e.target.value)}
+          placeholder="Provincia"
+          className="info-input"
+          aria-label="Provincia di nascita"
+        />
+      </div>
+    </>
+  );
+
+  // Pagina mostrata dopo il login quando mancano dati anagrafici: stessa veste
+  // della registrazione, ma senza credenziali e con il solo pulsante "Continua".
+  const renderPersonalInfoPage = () => (
+    <div className="login-page register-mode">
+      <img src="/logo512.png" alt="Kuma Logo" className="login-logo" />
+      <h2>Informazioni personali</h2>
+      <form onSubmit={handlePersonalInfoSubmit}>
+        <div className="personal-info-grid">
+          {renderPersonalInfoFields()}
+        </div>
+        <button type="submit" className="login-button">Continua</button>
+      </form>
+    </div>
+  );
+
   const renderLoginPage = () => (
     <div className={`login-page ${isRegistering ? 'register-mode' : ''}`}>
       <img src="/logo512.png" alt="Kuma Logo" className="login-logo" />
@@ -793,98 +946,29 @@ function App() {
           </>
         )}
         {isRegistering && (
-          <>
-            <div className="personal-info-grid">
-              <div className="info-item">
-                <div className="info-label">Nome</div>
-                <input
-                  type="text"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Nome"
-                  className="info-input"
-                  aria-label="Nome"
-                />
-              </div>
-              <div className="info-item">
-                <div className="info-label">Cognome</div>
-                <input
-                  type="text"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Cognome"
-                  className="info-input"
-                  aria-label="Cognome"
-                />
-              </div>
-              <div className="info-item">
-                <div className="info-label">Data di Nascita</div>
-                <input
-                  type="date"
-                  value={birthDate}
-                  onChange={(e) => setBirthDate(e.target.value)}
-                  placeholder="Data di Nascita"
-                  className="info-input"
-                  aria-label="Data di nascita"
-                />
-              </div>
-              <div className="info-item">
-                <div className="info-label">Genere</div>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="info-select"
-                  aria-label="Genere"
-                >
-                  <option value="">Seleziona genere</option>
-                  <option value="M">M</option>
-                  <option value="F">F</option>
-                </select>
-              </div>
-              <div className="info-item">
-                <div className="info-label">Città di Nascita</div>
-                <input
-                  type="text"
-                  value={birthCity}
-                  onChange={(e) => setBirthCity(e.target.value)}
-                  placeholder="Città di Nascita"
-                  className="info-input"
-                  aria-label="Città di nascita"
-                />
-              </div>
-              <div className="info-item">
-                <div className="info-label">Provincia</div>
-                <input
-                  type="text"
-                  value={birthProvince}
-                  onChange={(e) => setBirthProvince(e.target.value)}
-                  placeholder="Provincia"
-                  className="info-input"
-                  aria-label="Provincia di nascita"
-                />
-              </div>
-              <div className="info-item credentials-item">
-                <div className="info-label">Username</div>
-                <input
-                  type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Username"
-                  required
-                  className="info-input"
-                  aria-label="Username"
-                />
-              </div>
-              <div className="info-item credentials-item">
-                <div className="info-label">Password</div>
-                <PasswordInput
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Password"
-                />
-              </div>
+          <div className="personal-info-grid">
+            {renderPersonalInfoFields()}
+            <div className="info-item credentials-item">
+              <div className="info-label">Username</div>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Username"
+                required
+                className="info-input"
+                aria-label="Username"
+              />
             </div>
-          </>
+            <div className="info-item credentials-item">
+              <div className="info-label">Password</div>
+              <PasswordInput
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+              />
+            </div>
+          </div>
         )}
         <button type="submit" className="login-button">{isRegistering ? 'Registrati' : 'Accedi'}</button>
         <button type="button" onClick={() => setIsRegistering(!isRegistering)} className="toggle-register">
@@ -950,8 +1034,8 @@ function App() {
       </div>
       <div className="profile-section">
         <h3>Visualizzazione Leader Board</h3>
-        <div className="toggle-row leaderboard-toggle-row">
-          <label className="toggle-switch inline-toggle">
+        <div className="leaderboard-toggle-row">
+          <label className="toggle-switch">
             <input
               type="checkbox"
               checked={showUsernameOnLeaderboard}
@@ -964,7 +1048,7 @@ function App() {
             />
             <span className="toggle-slider"></span>
           </label>
-          <div className="toggle-text leaderboard-toggle-text">
+          <div className="leaderboard-toggle-text">
             <span className="leaderboard-toggle-title">Mostra username sulla Leader Board</span>
             <p className="leaderboard-toggle-hint">Se disattivato, verranno mostrati Nome e Cognome</p>
           </div>
@@ -1546,10 +1630,11 @@ function App() {
   };
 
   return (
-    <div className={`app${showSplash ? ' app-splash' : ''}${!showSplash && currentPage === 'Login' ? ' app-login' : ''}`}>
+    <div className={`app${showSplash ? ' app-splash' : ''}${!showSplash && (currentPage === 'Login' || currentPage === 'PersonalInfo') ? ' app-login' : ''}`}>
       <div className="app-background" />
       {showSplash && renderSplashPage()}
       {!showSplash && currentPage === 'Login' && renderLoginPage()}
+      {!showSplash && currentPage === 'PersonalInfo' && renderPersonalInfoPage()}
       {!showSplash && currentPage === 'Home' && renderHomePage()}
       {!showSplash && currentPage === 'Me' && renderMePage()}
       {!showSplash && currentPage === 'Leaderboard' && renderLeaderboardPage()}
@@ -1557,7 +1642,7 @@ function App() {
       {!showSplash && currentPage === 'Programmazioni' && renderProgrammazioniPage()}
       {!showSplash && currentPage === 'Team' && userRole === 'coach' && renderTeamPage()}
       <WorkoutTools showLauncher={currentPage === 'Programmazioni'} />
-      {currentPage !== 'Login' && (
+      {currentPage !== 'Login' && currentPage !== 'PersonalInfo' && (
         <div className="menu-bar">
           <button onClick={() => setCurrentPage('Home')} aria-label="Home" title="Home" aria-current={currentPage === 'Home' ? 'page' : undefined}>
             <Home size={24} />
